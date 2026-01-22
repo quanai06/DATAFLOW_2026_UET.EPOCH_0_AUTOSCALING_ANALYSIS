@@ -3,3 +3,9 @@
 >>>>>>> 82a2501703ce0a37915d96189dffabff0553157a
 temp_extracted/
 *.csv
+
+# ignore data folders
+data/raw/
+data/processed/
+data/cleaned/
+
