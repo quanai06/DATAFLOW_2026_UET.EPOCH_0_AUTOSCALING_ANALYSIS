@@ -65,5 +65,5 @@ def train_xgboost():
         summary_df.to_csv('results/xgboost/xgboost_performance_report.csv', index=False)
         
 if __name__ == "__main__":
-    train_lgbm()
+    #train_lgbm()
     train_xgboost()

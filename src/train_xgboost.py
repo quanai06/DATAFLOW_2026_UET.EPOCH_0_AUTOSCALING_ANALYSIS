@@ -18,12 +18,18 @@ class XGBoostTrainer:
         path = f'data/model_ml/train_{self.timeframe}.parquet'
         df = pd.read_parquet(path).sort_values('timestamp')
         
+        # LOẠI BỎ DỮ LIỆU LỖI DO BÃO:
+        df = df.dropna(subset=['avg_url_len', 'avg_path_depth'])
+
         # Chia tập Valid độc lập theo mốc 12/08
         hold_out_date = pd.to_datetime('1995-08-12 00:00:00').tz_localize(df['timestamp'].dt.tz)
         train_full = df[df['timestamp'] < hold_out_date].reset_index(drop=True)
         valid_independent = df[df['timestamp'] >= hold_out_date].reset_index(drop=True)
         
         return train_full, valid_independent
+
+    def calculate_wape(self, y_true, y_pred):
+        return np.sum(np.abs(y_true - y_pred)) / np.sum(y_true)
 
     def train(self):
         train_full, valid_independent = self.load_and_split()
@@ -48,6 +54,11 @@ class XGBoostTrainer:
             X_train, y_train = train_full.iloc[t_idx][features], train_full.iloc[t_idx][self.target_col]
             X_val, y_val = train_full.iloc[v_idx][features], train_full.iloc[v_idx][self.target_col]
 
+            # LOG-TRANSFORM CHO Y TRƯỚC KHI TRAIN
+            # Dùng log1p để tránh lỗi ln(0) vì log1p(x) = ln(1+x)
+            y_train_log = np.log1p(y_train)
+            y_val_log = np.log1p(y_val)
+
             # CHUYỂN SANG XGBOOST TẠI ĐÂY
             model = xgb.XGBRegressor(
                 n_estimators=1000,
@@ -59,15 +70,20 @@ class XGBoostTrainer:
             )
             
             model.fit(
-                X_train, y_train,
-                eval_set=[(X_val, y_val)],
+                X_train, y_train_log, 
+                eval_set=[(X_val, y_val_log)],
                 verbose=False
             )
             best_model = model
 
-        # Đánh giá cuối cùng trên tập Valid độc lập
-        preds = best_model.predict(X_valid_ind)
+        # BƯỚC 2: DỰ BÁO VÀ ĐƯA VỀ GIÁ TRỊ GỐC (EXP)
+        preds_log = best_model.predict(X_valid_ind)
+        # Dùng expm1 để nghịch đảo của log1p: expm1(x) = e^x - 1
+        preds = np.expm1(preds_log)
         
+        # Đảm bảo không có giá trị dự báo âm (do sai số exp)
+        preds = np.maximum(preds, 0)
+
         # Tính toán các chỉ số đề bài yêu cầu
         self.results = {
             'Model_Type': 'XGBoost',
@@ -76,7 +92,7 @@ class XGBoostTrainer:
             'RMSE': np.sqrt(mean_squared_error(y_valid_ind, preds)),
             'MSE': mean_squared_error(y_valid_ind, preds),
             'MAE': mean_absolute_error(y_valid_ind, preds),
-            'MAPE': mean_absolute_percentage_error(y_valid_ind, preds)
+            'WAPE': self.calculate_wape(y_valid_ind, preds)
         }
         # LƯU KẾT QUẢ VÀ MODEL
         # 1. Tạo thư mục nếu chưa có
