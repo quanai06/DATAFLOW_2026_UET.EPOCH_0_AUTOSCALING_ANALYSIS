@@ -28,22 +28,24 @@ class XGBoostTrainer:
         
         return train_full, valid_independent
 
-    def calculate_wape(self, y_true, y_pred):
-        return np.sum(np.abs(y_true - y_pred)) / np.sum(y_true)
+    def calculate_mape(self,y_true, y_pred):
+        # Chỉ tính tại những thời điểm thực tế > 1
+        mask = y_true > 1 
+        if np.any(mask):
+            # Tính MAPE trên tập dữ liệu đã lọc
+            mape = np.mean(np.abs((y_true[mask] - y_pred[mask]) / y_true[mask]))
+            return mape
+        return 0
 
     def train(self):
         train_full, valid_independent = self.load_and_split()
         
         # Thêm các features 
-        features = [
-        'bytes_missing_rate', 'bytes_all_missing', 'error_rate', 
-        'server_error_rate', 'redirection_rate', 'dynamic_rate', 
-        'commercial_rate', 'unknown_rate', 'avg_url_len', 'avg_path_depth', 
-        'country_nunique', 'dir_nunique', 'method_nunique', 
-        'top_country_share', 'endpoint_entropy', 'hour', 
-        'weekday', 'is_weekend', 'flag_data_gap'
-    ]
-        
+        features = [col for col in train_full.columns if col not in ['timestamp', self.target_col]]
+
+        # Đảm bảo target_col (ví dụ y_req_t1) KHÔNG nằm trong features
+        features = [f for f in features if f != self.target_col]
+
         X_valid_ind = valid_independent[features]
         y_valid_ind = valid_independent[self.target_col]
 
@@ -62,8 +64,8 @@ class XGBoostTrainer:
             # CHUYỂN SANG XGBOOST TẠI ĐÂY
             model = xgb.XGBRegressor(
                 n_estimators=1000,
-                learning_rate=0.05,
-                max_depth=6,
+                learning_rate=0.02,
+                max_depth=8,
                 early_stopping_rounds=50,
                 tree_method='hist', # Tăng tốc độ train
                 random_state=42
@@ -92,7 +94,7 @@ class XGBoostTrainer:
             'RMSE': np.sqrt(mean_squared_error(y_valid_ind, preds)),
             'MSE': mean_squared_error(y_valid_ind, preds),
             'MAE': mean_absolute_error(y_valid_ind, preds),
-            'WAPE': self.calculate_wape(y_valid_ind, preds)
+            'MAPE': self.calculate_mape(y_valid_ind, preds)
         }
         # LƯU KẾT QUẢ VÀ MODEL
         # 1. Tạo thư mục nếu chưa có

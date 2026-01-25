@@ -42,7 +42,7 @@ def train_lgbm():
 def train_xgboost():
     # Danh sách các khung thời gian và mục tiêu cần train theo đề bài
     timeframes = ['1m', '5m', '15m']
-    targets = ['y_req', 'y_bytes_imp']
+    targets = ['y_req_t1', 'y_bytes_imp_t1']
     
     all_results = []
     
@@ -65,5 +65,5 @@ def train_xgboost():
         summary_df.to_csv('results/xgboost/xgboost_performance_report.csv', index=False)
         
 if __name__ == "__main__":
-    #train_lgbm()
+    # train_lgbm()
     train_xgboost()
