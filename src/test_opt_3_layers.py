@@ -5,45 +5,54 @@ from optimize_3_layers import HybridOptimizer
 
 # --- BƯỚC 1: LOAD DỮ LIỆU ĐÃ MERGE (1m, 5m, 15m) ---
 # Hàm này nạp file CSV kết quả dự báo mà bạn đã chạy từ XGBoost và hợp nhất chúng lại
+# Chuyển về dạng req/s và bytes/s cho từng khoảng thời gian
+# Xử lý khoảng trống bằng forward-fill
 
-def merge_multiresolution_data(base_path='results/xgboost/'):
+def change_to_per_second(model, timeframe):
+    df_req = pd.read_csv(os.path.join('results', model, f'results_{model}_y_req_t1_{timeframe}.csv'))
+    df_bytes = pd.read_csv(os.path.join('results', model, f'results_{model}_y_bytes_imp_t1_{timeframe}.csv'))
+    
+    # Chuyển đổi dự báo về đơn vị per second
+    factor = {'1m': 60, '5m': 300, '15m': 900}[timeframe]
+    
+    df_req['y_req_t1'] = df_req['y_req_t1'] / factor
+    df_bytes['y_bytes_imp_t1'] = df_bytes['y_bytes_imp_t1'] / factor
+    df_req['predicted'] = df_req['predicted'] / factor
+    df_bytes['predicted'] = df_bytes['predicted'] / factor
+    
+    df_req = df_req.rename(columns={'y_req_t1': f'act_{timeframe}_req', 'predicted': f'predicted_{timeframe}_req'})
+    df_bytes = df_bytes.rename(columns={'y_bytes_imp_t1': f'act_{timeframe}_bytes', 'predicted': f'predicted_{timeframe}_bytes'})
+    df_req['timestamp'] = pd.to_datetime(df_req['timestamp'])
+    df_bytes['timestamp'] = pd.to_datetime(df_bytes['timestamp'])
+    return df_req, df_bytes
+
+def merge_multiresolution_data(model):
     print(">>> Đang hợp nhất dữ liệu đa độ phân giải...")
     
-    # 1. Load dữ liệu 1 phút (Làm khung xương chính cho mọi phút)
-    req_1m = pd.read_csv(os.path.join(base_path, 'results_xgb_y_req_t1_1m.csv'))
-    req_1m = req_1m.rename(columns={'y_req_t1': 'act_req', 'predicted': 'f1m_req'})
+    # Load và đổi đơn vị
+    req_1m, bytes_1m = change_to_per_second(model, '1m')
+    req_5m, bytes_5m = change_to_per_second(model, '5m')
+    req_15m, bytes_15m = change_to_per_second(model, '15m')
     
-    bytes_1m = pd.read_csv(os.path.join(base_path, 'results_xgb_y_bytes_imp_t1_1m.csv'))
-    bytes_1m = bytes_1m.rename(columns={'y_bytes_imp_t1': 'act_bytes', 'predicted': 'f1m_bytes'})
-    
-    # Merge 1m Requests và Bytes
+    # Merge
     df = pd.merge(req_1m, bytes_1m, on='timestamp')
+    
+    df = pd.merge(df, req_5m[['timestamp', 'predicted_5m_req']], on='timestamp', how='left')
+    df = pd.merge(df, bytes_5m[['timestamp', 'predicted_5m_bytes']], on='timestamp', how='left')
+    
+    df = pd.merge(df, req_15m[['timestamp', 'predicted_15m_req']], on='timestamp', how='left')
+    df = pd.merge(df, bytes_15m[['timestamp', 'predicted_15m_bytes']], on='timestamp', how='left')
+    
+    # Xử lý khoảng trống bằng forward-fill
+    df = df.sort_values('timestamp')
+    df = df.ffill()
+    df = df.dropna().reset_index(drop=True)
 
-    # 2. Load và gộp dữ liệu 5 phút
-    req_5m = pd.read_csv(os.path.join(base_path, 'results_xgb_y_req_t1_5m.csv'))[['timestamp', 'predicted']]
-    req_5m = req_5m.rename(columns={'predicted': 'f5m_req'})
-    
-    bytes_5m = pd.read_csv(os.path.join(base_path, 'results_xgb_y_bytes_imp_t1_5m.csv'))[['timestamp', 'predicted']]
-    bytes_5m = bytes_5m.rename(columns={'predicted': 'f5m_bytes'})
-    
-    df = pd.merge(df, req_5m, on='timestamp', how='left')
-    df = pd.merge(df, bytes_5m, on='timestamp', how='left')
-
-    # 3. Load và gộp dữ liệu 15 phút
-    req_15m = pd.read_csv(os.path.join(base_path, 'results_xgb_y_req_t1_15m.csv'))[['timestamp', 'predicted']]
-    req_15m = req_15m.rename(columns={'predicted': 'f15m_req'})
-    
-    bytes_15m = pd.read_csv(os.path.join(base_path, 'results_xgb_y_bytes_imp_t1_15m.csv'))[['timestamp', 'predicted']]
-    bytes_15m = bytes_15m.rename(columns={'predicted': 'f15m_bytes'})
-    
-    df = pd.merge(df, req_15m, on='timestamp', how='left')
-    df = pd.merge(df, bytes_15m, on='timestamp', how='left')
-    
     return df
 
-
 # --- BƯỚC 2: ĐỊNH NGHĨA HÀM OBJECTIVE ---
-def objective(trial, df=merge_multiresolution_data()):
+
+def objective(trial, df):
     # Các tham số Optuna sẽ "thử sai"
     k_base = trial.suggest_float("k_base", 0.8, 1.2)
     buffer_5m = trial.suggest_float("buffer_5m", 0.1, 0.4)
@@ -53,7 +62,7 @@ def objective(trial, df=merge_multiresolution_data()):
 
     # Khởi tạo bộ não tối ưu với bộ tham số trial này
     opt = HybridOptimizer(500, 4000, k_base, buffer_5m, panic_threshold, burst_add, patience)
-    
+
     cost_run = 0
     sla_penalty = 0
     scaling_events = 0
@@ -63,18 +72,19 @@ def objective(trial, df=merge_multiresolution_data()):
     for t in range(len(df)):
         # Truyền dữ liệu vào tầng step
         s = opt.step(
-            f15_req=df['f15m_req'].iloc[t],
-            f15_bytes=df['f15m_bytes'].iloc[t],
-            f5_req=df['f5m_req'].iloc[t],
-            f5_bytes=df['f5m_bytes'].iloc[t],
-            act1_req=df['act_req'].iloc[t],
+            f15_req=df['predicted_15m_req'].iloc[t],
+            f15_bytes=df['predicted_15m_bytes'].iloc[t],
+            f5_req=df['predicted_5m_req'].iloc[t],
+            f5_bytes=df['predicted_5m_bytes'].iloc[t],
+            act1_req=df['act_1m_req'].iloc[t],
+            act1_bytes=df['act_1m_bytes'].iloc[t],
             t=t
         )
         
         cost_run += s # Cộng dồn tiền thuê máy chủ
         
         # 1. Phạt vi phạm SLA (Thiếu hụt thực tế so với đáp ứng)
-        if df['act_req'].iloc[t] > s * 500 or df['act_bytes'].iloc[t] > s * 4000:
+        if df['act_1m_req'].iloc[t] > s * 500 or df['act_1m_bytes'].iloc[t] > s * 4000:
             sla_penalty += 1 
             
         # 2. Phạt dao động (Scaling Events - Chống Flapping)
@@ -90,7 +100,9 @@ def objective(trial, df=merge_multiresolution_data()):
 # --- BƯỚC 3: KÍCH HOẠT OPTUNA ---
 if __name__ == "__main__":
     study = optuna.create_study(direction="minimize")
-    study.optimize(objective, n_trials=100) # Thử 100 bộ tham số khác nhau
+
+    df = merge_multiresolution_data(model='xgboost')
+    study.optimize(lambda trial: objective(trial, df), n_trials=100) # Thử 100 bộ tham số khác nhau
 
     print("=== KẾT QUẢ TỐI ƯU CHIẾN LƯỢC ===")
     print(f"Giá trị Cost thấp nhất: {study.best_value}")

@@ -10,7 +10,7 @@ class XGBoostTrainer:
     def __init__(self, timeframe, target_col):
         self.timeframe = timeframe
         self.target_col = target_col
-        self.model_name = f"xgb_{target_col}_{timeframe}"
+        self.model_name = f"xgboost_{target_col}_{timeframe}"
         self.results = {}
 
     def load_and_split(self):
