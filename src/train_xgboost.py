@@ -17,9 +17,6 @@ class XGBoostTrainer:
         # Load data
         path = f'data/model_ml/train_{self.timeframe}.parquet'
         df = pd.read_parquet(path).sort_values('timestamp')
-        
-        # LOẠI BỎ DỮ LIỆU LỖI DO BÃO:
-        df = df.dropna(subset=['avg_url_len', 'avg_path_depth'])
 
         # Chia tập Valid độc lập theo mốc 12/08
         hold_out_date = pd.to_datetime('1995-08-12 00:00:00').tz_localize(df['timestamp'].dt.tz)
