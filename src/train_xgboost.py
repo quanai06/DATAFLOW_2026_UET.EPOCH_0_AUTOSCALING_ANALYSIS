@@ -7,11 +7,14 @@ import xgboost as xgb
 import os
 
 class XGBoostTrainer:
-    def __init__(self, timeframe, target_col):
+    def __init__(self, timeframe, target_col, objective='reg:squarederror', quantile_alpha=None):
         self.timeframe = timeframe
         self.target_col = target_col
-        self.model_name = f"xgboost_{target_col}_{timeframe}"
-        self.results = {}
+        self.objective = objective
+        self.quantile_alpha = quantile_alpha
+        suffix = f"_q{int(quantile_alpha*100)}" if quantile_alpha else ""
+        self.model_name = f"xgboost_{target_col}_{timeframe}{suffix}"
+        self.results_summary = {}
 
     def load_and_split(self):
         # Load data
@@ -63,6 +66,10 @@ class XGBoostTrainer:
                 n_estimators=1000,
                 learning_rate=0.02,
                 max_depth=8,
+                objective=self.objective,
+                quantile_alpha=self.quantile_alpha,
+                reg_alpha=0.1,
+                reg_lambda=1,
                 early_stopping_rounds=50,
                 tree_method='hist', # Tăng tốc độ train
                 random_state=42
