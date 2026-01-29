@@ -55,8 +55,8 @@ class HybridOptimizer:
         # Nếu có panic, cộng thêm burst_add vào N_target
         if is_panic:
             # Tính số server cần thật sự để gánh Spike
-            panic_needed_req = math.ceil(act1_req / self.cap_req)
-            panic_needed_bytes = math.ceil(act1_bytes / self.cap_bytes)
+            panic_needed_req = math.ceil(act1_req / self.eff_cap_req)
+            panic_needed_bytes = math.ceil(act1_bytes / self.eff_cap_bytes)
             panic_needed = max(panic_needed_req, panic_needed_bytes)
             needed = max(target_stable , panic_needed + self.burst_add)
 

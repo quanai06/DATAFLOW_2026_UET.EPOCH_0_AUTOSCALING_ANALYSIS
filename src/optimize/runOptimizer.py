@@ -8,8 +8,8 @@ import json
 # Load environment variables from .env file
 load_dotenv()
 
-CAP_REQ = int(os.getenv('CAP_REQ'))
-CAP_BYTES = int(os.getenv('CAP_BYTES'))
+CAP_REQ = float(os.getenv('CAP_REQ'))
+CAP_BYTES = float(os.getenv('CAP_BYTES'))
 COST_PER_SERVER_PER_MIN = int(os.getenv('COST_PER_SERVER_PER_MIN'))
 COST_SOFT_SLA_PENALTY_REQ = int(os.getenv('COST_SOFT_SLA_PENALTY_REQ'))
 COST_SOFT_SLA_PENALTY_BYTES = int(os.getenv('COST_SOFT_SLA_PENALTY_BYTES'))
@@ -36,14 +36,14 @@ def objective(trial, df, strategy):
     elif strategy == "predictive":
         params = {
             "k_base": trial.suggest_float("k_base_p", 0.8, 1.2),
-            "alpha_5m": trial.suggest_float("alpha_5m_p", 0.1, 0.5),
+            "alpha_5m": trial.suggest_float("alpha_5m_p", 0.2, 1),
             "in_patience": trial.suggest_int("in_patience_p", 5, 15)
 
         }
     else: # hybrid
         params = {
             "k_base": trial.suggest_float("k_base_h", 0.8, 1.2),
-            "alpha_5m": trial.suggest_float("alpha_5m_h", 0.0, 1.5),
+            "alpha_5m": trial.suggest_float("alpha_5m_h", 0.2, 1.0),
             "panic_ratio": trial.suggest_float("panic_ratio_h", 0.05, 0.5),
             "burst_add": trial.suggest_int("burst_add_h", 1, 5),
             "in_patience": trial.suggest_int("in_patience_h", 5, 15),
@@ -97,6 +97,13 @@ def objective(trial, df, strategy):
     # Trọng số của shortage cần cao để AI "sợ" sập nặng
     total_score = (count_servers * COST_PER_SERVER_PER_MIN) + sla_penalty + \
                 (scaling_events * COST_SCALING_EVENT)
+
+    trial.set_user_attr("scaling_events", scaling_events)
+    trial.set_user_attr("total_soft_overload",
+                        total_soft_overload_req + total_soft_overload_bytes)
+    trial.set_user_attr("total_hard_overload",
+                        total_hard_overload_req + total_hard_overload_bytes)
+
 
     return total_score
 
