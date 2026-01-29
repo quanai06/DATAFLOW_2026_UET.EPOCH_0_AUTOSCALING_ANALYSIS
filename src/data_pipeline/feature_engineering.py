@@ -349,7 +349,7 @@ class Aggregator:
 # =========================
 # Stage 4: ML-ready features (gap flag, time cyclical, shift labels t+1, lags/rolling)
 # =========================
-class MLFeatureBuilder:
+class BaseFeatureBuilder:
     def flag_data_gap(self, df: pd.DataFrame) -> pd.DataFrame:
         d = df.copy()
         d["flag_data_gap"] = d["avg_path_depth"].isna().astype("int8")
@@ -420,7 +420,17 @@ class MLFeatureBuilder:
         print(f"select {len(candidate_features)} columns")
         df=df[candidate_features]
         return df
+    def build(self, df_ts: pd.DataFrame, freq_key: str) -> pd.DataFrame:
+        d = df_ts.copy()
+        d = self.flag_data_gap(d)
+        d = self.fill_missing(d)
+        d = self.add_cyclical_time(d)
+        d = self.add_targets_t1(d)
+        d = self.select_features(d)
+        return d
+    
 
+class MLFeatureBuilder(BaseFeatureBuilder):
     def add_lag_rolling_vel_acc(self, df: pd.DataFrame, freq_key: str) -> pd.DataFrame:
         """
         Based on your notebook:
@@ -483,15 +493,14 @@ class MLFeatureBuilder:
 
         d = d[d["flag_data_gap"] == 0].copy()
         return d
-
-    def build(self, df_ts: pd.DataFrame, freq_key: str) -> pd.DataFrame:
-        d = df_ts.copy()
-        d = self.flag_data_gap(d)
-        d = self.fill_missing(d)
-        d = self.add_cyclical_time(d)
-        d = self.add_targets_t1(d)
-        d = self.select_features(d)
-        d = self.add_lag_rolling_vel_acc(d, freq_key=freq_key)
+    def data_ml(self,df:pd.DataFrame)-> pd.DataFrame:
+        d=self.build(df)
+        d=self.add_lag_rolling_vel_acc(d)
+        return d
+    
+class LSTMFeatureBuilder(BaseFeatureBuilder):
+    def data_lstm(self, df :pd.DataFrame)-> pd.DataFrame:
+        d=self.build(df)
         return d
 
 
@@ -502,7 +511,8 @@ class MLFeatureBuilder:
 class PipelineConfig:
     zip_path: str
     encoding: str = "utf-8"
-    out_dir: str = "data/gold"   # where parquet outputs go
+    out_dir_ml: str = "data/model_ml"  
+    out_dir_dl: str = "data/model_dl"
 
 
 class DataPipeline:
@@ -515,6 +525,21 @@ class DataPipeline:
         self.cleaner = RowCleaner()
         self.aggregator = Aggregator()
         self.ml_builder = MLFeatureBuilder()
+        self.lstm_builder=LSTMFeatureBuilder()
+
+        self._ml_hist = {
+            "1m":  max(15, 30) + 3,
+            "5m":  max(6,  24) + 3,
+            "15m": max(3,  12) + 3,
+        }
+        
+    def _concat_context(self, train_df: pd.DataFrame, test_df: pd.DataFrame, hist_rows: int):
+        train_df = train_df.sort_values("timestamp").copy()
+        test_df = test_df.sort_values("timestamp").copy()
+        ctx = train_df.tail(hist_rows).copy()
+        combined = pd.concat([ctx, test_df], ignore_index=True)
+        test_ts_min = test_df["timestamp"].min()
+        return combined, test_ts_min
 
     def run(self, save: bool = True) -> Dict[str, Dict[str, pd.DataFrame]]:
         train_lines, test_lines = self.ingestor.read_train_test_lines()
@@ -531,14 +556,51 @@ class DataPipeline:
         test_multi = self.aggregator.make_multi_freq(df_test_row)
         print ("HOÀN THÀNH 99%")
 
-        train_ml = {k: self.ml_builder.build(v, k) for k, v in train_multi.items()}
-        test_ml = {k: self.ml_builder.build(v, k) for k, v in test_multi.items()}
+        train_ml, test_ml = {}, {}
+        for k in train_multi.keys():
+            # train ML: build base + add lag/rolling/vel/acc
+            base_tr = self.ml_builder.build(train_multi[k], k)
+            tr_ml = self.ml_builder.add_lag_rolling_vel_acc(base_tr, k)
+            tr_ml = tr_ml.dropna().copy()
+            train_ml[k] = tr_ml
 
+            # test ML: prepend context train -> build -> add lag/rolling -> chỉ giữ phần test
+            combined, test_ts_min = self._concat_context(
+                train_multi[k], test_multi[k], hist_rows=self._ml_hist.get(k, 50)
+            )
+            base_te = self.ml_builder.build(combined, k)
+            te_ml = self.ml_builder.add_lag_rolling_vel_acc(base_te, k)
+            te_ml = te_ml[te_ml["timestamp"] >= test_ts_min].dropna().copy()
+            test_ml[k] = te_ml
+
+        # =========================
+        # 2) LSTM-base: train/test (KHÔNG window/scaler)
+        #    test_lstm sẽ GIỮ context ở đầu (để bạn build window ngoài)
+        # =========================
+        train_lstm = {k: self.lstm_builder.build(v, k) for k, v in train_multi.items()}
+        test_lstm  = {k: self.lstm_builder.build(v, k) for k, v in test_multi.items()}
+
+        # =========================
+        # Save parquet
+        # =========================
         if save:
-            os.makedirs(self.cfg.out_dir, exist_ok=True)
-            for k, dfk in train_ml.items():
-                dfk.to_parquet(os.path.join(self.cfg.out_dir, f"train_{k}.parquet"), index=False)
-            for k, dfk in test_ml.items():
-                dfk.to_parquet(os.path.join(self.cfg.out_dir, f"test_{k}.parquet"), index=False)
+            os.makedirs(self.cfg.out_dir_ml, exist_ok=True)
+            os.makedirs(self.cfg.out_dir_dl, exist_ok=True)
 
-        return {"train": train_ml, "test": test_ml}
+            # ML
+            for k, dfk in train_ml.items():
+                dfk.to_parquet(os.path.join(self.cfg.out_dir_ml, f"train_{k}.parquet"), index=False)
+            for k, dfk in test_ml.items():
+                dfk.to_parquet(os.path.join(self.cfg.out_dir_ml, f"test_{k}.parquet"), index=False)
+
+            # LSTM-base
+            for k, dfk in train_lstm.items():
+                dfk.to_parquet(os.path.join(self.cfg.out_dir_dl, f"train_{k}.parquet"), index=False)
+            for k, dfk in test_lstm.items():
+                # file này có context ở đầu
+                dfk.to_parquet(os.path.join(self.cfg.out_dir_dl, f"test_{k}.parquet"), index=False)
+
+        return {
+            "ml": {"train": train_ml, "test": test_ml},
+            "lstm": {"train": train_lstm, "test": test_lstm},
+        }
