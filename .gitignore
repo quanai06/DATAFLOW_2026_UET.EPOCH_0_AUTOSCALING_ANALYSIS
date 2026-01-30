@@ -1,6 +1,4 @@
 *.env
-*.csv
 temp_extracted/
-*.csv
 **/__pycache__/
 *.pyc
