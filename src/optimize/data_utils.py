@@ -56,10 +56,10 @@ def merge_multiresolution_data(model):
     return df
 
 if __name__ == "__main__":
-    df = merge_multiresolution_data('xgboost')
-    df.to_csv('results/merged_xgboost_data.csv', index=False)
-    print("Đã lưu dữ liệu hợp nhất tại: results/merged_xgboost_data.csv")
+    # df = merge_multiresolution_data('xgboost')
+    # df.to_csv('results/merged_xgboost_data.csv', index=False)
+    # print("Đã lưu dữ liệu hợp nhất tại: results/merged_xgboost_data.csv")
 
-    # df = merge_multiresolution_data('lgbm')
-    # df.to_csv('results/merged_lgbm_data.csv', index=False)
-    # print("Đã lưu dữ liệu hợp nhất tại: results/merged_lgbm_data.csv")
+    df = merge_multiresolution_data('lgbm')
+    df.to_csv('results/merged_lgbm_data.csv', index=False)
+    print("Đã lưu dữ liệu hợp nhất tại: results/merged_lgbm_data.csv")

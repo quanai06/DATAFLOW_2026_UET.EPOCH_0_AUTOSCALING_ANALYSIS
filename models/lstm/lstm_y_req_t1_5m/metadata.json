@@ -1,0 +1,39 @@
+{
+    "target": "y_req_t1",
+    "timeframe": "5m",
+    "best_params": {
+        "window_size": 20,
+        "units": 64,
+        "lr": 0.001
+    },
+    "metrics": {
+        "rmse": 47.294123126867476,
+        "mae": 35.21533626811972
+    },
+    "features": [
+        "y_req",
+        "y_bytes_imp",
+        "bytes_missing_rate",
+        "bytes_all_missing",
+        "error_rate",
+        "server_error_rate",
+        "redirection_rate",
+        "dynamic_rate",
+        "commercial_rate",
+        "unknown_rate",
+        "avg_path_depth",
+        "country_nunique",
+        "dir_nunique",
+        "method_nunique",
+        "top_country_share",
+        "endpoint_entropy",
+        "hour",
+        "weekday",
+        "is_weekend",
+        "sin_hour",
+        "cos_hour",
+        "sin_weekday",
+        "cos_weekday",
+        "flag_data_gap"
+    ]
+}
