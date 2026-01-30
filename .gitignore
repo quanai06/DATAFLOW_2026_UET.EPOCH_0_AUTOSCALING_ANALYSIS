@@ -1,6 +1,5 @@
-*.env
-*.csv
+*.venv
 temp_extracted/
-*.csv
 **/__pycache__/
 *.pyc
+*.venv/

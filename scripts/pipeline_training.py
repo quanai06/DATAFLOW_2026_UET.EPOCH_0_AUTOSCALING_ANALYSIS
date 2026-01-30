@@ -52,6 +52,10 @@ def train_xgboost():
                 trainer = XGBoostTrainer(tf, tg)
                 metrics = trainer.train()
                 all_results.append(metrics)
+                if tf in ['5m', '1m']:
+                    trainer_q90 = XGBoostTrainer(tf, tg, objective='reg:quantileerror', quantile_alpha=0.9)
+                    metrics_q90 = trainer_q90.train()
+                    all_results.append(metrics_q90)
             except Exception as e:
                 print(f"Lỗi khi train {tg} khung {tf}: {e}")
                 
