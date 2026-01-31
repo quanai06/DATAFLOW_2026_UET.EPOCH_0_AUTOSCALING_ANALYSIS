@@ -20,6 +20,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 
+
 from optimize.universalOptimizer import UniversalOptimizer
 
 
@@ -142,6 +143,22 @@ def simulate_df(
     total_hard_overload_req = 0.0
     total_hard_overload_bytes = 0.0
 
+# =========================
+    # Spike detection config
+    # =========================
+    spike_ratio = float(params.get("spike_ratio", 1.5))  # act > safe * ratio => spike_now
+    spike_win_k = int(params.get("spike_win_k", 5))      # window K phút
+    spike_win_n = int(params.get("spike_win_n", 3))      # >=N lần spike trong K => confirmed
+
+    _hist_req: List[bool] = []
+    _hist_bytes: List[bool] = []
+
+    spike_now_req_list: List[bool] = []
+    spike_now_bytes_list: List[bool] = []
+    spike_conf_req_list: List[bool] = []
+    spike_conf_bytes_list: List[bool] = []
+    spike_now_list: List[bool] = []
+    spike_conf_list: List[bool] = []
     # loop
     for t, row in enumerate(df.itertuples(index=False)):
         s = int(opt.step(row, t))
@@ -151,6 +168,55 @@ def simulate_df(
         # soft overload counts only above effective cap but below hard cap
         act_req = float(getattr(row, "act_1m_req"))
         act_bytes = float(getattr(row, "act_1m_bytes"))
+
+         # =========================
+        # Spike detection (req & bytes) vs safe_5m
+        # =========================
+        alpha = float(params.get("alpha_5m", 0.0))
+
+        # ---- bytes safe_5m
+        spike_now_bytes = False
+        try:
+            f5_b = float(getattr(row, "predicted_5m_bytes"))
+            f5q_b = float(getattr(row, "predicted_5m_q90_bytes"))
+            safe_b = f5_b + alpha * max(0.0, (f5q_b - f5_b))
+            if safe_b > 0:
+                spike_now_bytes = (act_bytes > safe_b * spike_ratio)
+        except Exception:
+            # fallback: coi spike nếu vượt hard cap hiện tại
+            spike_now_bytes = (act_bytes > s * CAP_BYTES)
+
+        # ---- req safe_5m
+        spike_now_req = False
+        try:
+            f5_r = float(getattr(row, "predicted_5m_req"))
+            f5q_r = float(getattr(row, "predicted_5m_q90_req"))
+            safe_r = f5_r + alpha * max(0.0, (f5q_r - f5_r))
+            if safe_r > 0:
+                spike_now_req = (act_req > safe_r * spike_ratio)
+        except Exception:
+            spike_now_req = (act_req > s * CAP_REQ)
+
+        # confirmed logic
+        _hist_bytes.append(bool(spike_now_bytes))
+        if len(_hist_bytes) > spike_win_k:
+            _hist_bytes = _hist_bytes[-spike_win_k:]
+        spike_conf_bytes = (sum(_hist_bytes) >= spike_win_n)
+
+        _hist_req.append(bool(spike_now_req))
+        if len(_hist_req) > spike_win_k:
+            _hist_req = _hist_req[-spike_win_k:]
+        spike_conf_req = (sum(_hist_req) >= spike_win_n)
+
+        spike_now = bool(spike_now_req or spike_now_bytes)
+        spike_conf = bool(spike_conf_req or spike_conf_bytes)
+
+        spike_now_req_list.append(bool(spike_now_req))
+        spike_now_bytes_list.append(bool(spike_now_bytes))
+        spike_conf_req_list.append(bool(spike_conf_req))
+        spike_conf_bytes_list.append(bool(spike_conf_bytes))
+        spike_now_list.append(spike_now)
+        spike_conf_list.append(spike_conf)
 
         soft_overload_req = max(0.0, min(act_req, s * CAP_REQ) - s * EFF_CAP_REQ)
         soft_overload_bytes = max(0.0, min(act_bytes, s * CAP_BYTES) - s * EFF_CAP_BYTES)
@@ -181,6 +247,13 @@ def simulate_df(
     out = df.copy()
     out["servers"] = replicas
 
+    out["spike_now_req"] = spike_now_req_list
+    out["spike_now_bytes"] = spike_now_bytes_list
+    out["spike_confirmed_req"] = spike_conf_req_list
+    out["spike_confirmed_bytes"] = spike_conf_bytes_list
+    out["spike_now"] = spike_now_list
+    out["spike_confirmed"] = spike_conf_list
+
     # helpful columns for charting
     out["cap_req_eff"] = out["servers"] * EFF_CAP_REQ
     out["cap_bytes_eff"] = out["servers"] * EFF_CAP_BYTES
@@ -194,7 +267,15 @@ def simulate_df(
 
     # events table
     out["prev_servers"] = out["servers"].shift(1).fillna(out["servers"].iloc[0]).astype(int)
-    events = out.loc[out["servers"] != out["prev_servers"], ["timestamp", "prev_servers", "servers"]].copy()
+    event_cols = ["timestamp", "prev_servers", "servers",
+                  "spike_now", "spike_confirmed",
+                  "spike_now_req", "spike_now_bytes",
+                  "spike_confirmed_req", "spike_confirmed_bytes"]
+
+    # chỉ lấy các cột nào thực sự tồn tại (an toàn)
+    event_cols = [c for c in event_cols if c in out.columns]
+
+    events = out.loc[(out["servers"] != out["prev_servers"]) | out["spike_confirmed"]== True, event_cols].copy()
     events = events.rename(columns={"prev_servers": "from", "servers": "to"}).reset_index(drop=True)
 
     kpi = {
@@ -234,6 +315,8 @@ class SimulateBestRequest(BaseModel):
         description="If omitted, defaults to results/merged_<model>_data.csv",
     )
     init_servers: int = 1
+    start_time: Optional[str] = Field(None, description="ISO datetime, e.g. 1995-08-23 00:00:00")
+    end_time: Optional[str] = Field(None, description="ISO datetime, e.g. 1995-08-31 23:59:59")
 
 
 class SimulateRequestJSON(BaseModel):
@@ -276,6 +359,23 @@ def best_params(model: str, strategy: str) -> BestParamsResponse:
         raw_best_params=raw_best,
         normalized_params=normalized,
     )
+@app.get("/time-range")
+def time_range(model: str, merged_csv_path: Optional[str] = None) -> Dict[str, Any]:
+    csv_path = merged_csv_path or f"results/merged_{model}_data.csv"
+    df = pd.read_csv(csv_path)
+    if "timestamp" not in df.columns:
+        return {"ok": False, "error": "No timestamp column", "csv_path": csv_path}
+
+    ts = pd.to_datetime(df["timestamp"], errors="coerce").dropna()
+    if ts.empty:
+        return {"ok": False, "error": "No valid timestamps", "csv_path": csv_path}
+
+    return {
+        "ok": True,
+        "csv_path": csv_path,
+        "min_timestamp": ts.min().isoformat(sep=" "),
+        "max_timestamp": ts.max().isoformat(sep=" "),
+    }
 
 
 @app.post("/simulate-best")
@@ -294,6 +394,16 @@ def simulate_best(req: SimulateBestRequest) -> Dict[str, Any]:
     df = pd.read_csv(csv_path)
     if "timestamp" in df.columns:
         df["timestamp"] = pd.to_datetime(df["timestamp"], errors="coerce")
+        if req.start_time:
+            start = pd.to_datetime(req.start_time, errors="coerce")
+            if pd.notna(start):
+                df = df[df["timestamp"] >= start]
+        if req.end_time:
+            end = pd.to_datetime(req.end_time, errors="coerce")
+            if pd.notna(end):
+                df = df[df["timestamp"] <= end]
+
+        df = df.reset_index(drop=True)
 
     return simulate_df(df=df, strategy=req.strategy, params=params, init_servers=req.init_servers)
 
