@@ -1,1 +1,1 @@
-{"strategy": "hybrid", "best_params": {"k_base_h": 1.1157189875065872, "alpha_5m_h": 0.8827992978975593, "panic_ratio_h": 0.46665719362697367, "burst_add_h": 1, "in_patience_h": 10, "max_reduce_h": 2}, "best_value": 11813783.874166667}
+{"strategy": "hybrid", "best_params": {"k_base_h": 0.8214961530724423, "alpha_5m_h": 0.6100561682580751, "panic_ratio_h": 0.49193426556822645, "burst_add_h": 1, "in_patience_h": 10, "max_reduce_h": 2}, "best_value": 11629522.644166667}

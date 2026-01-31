@@ -1,1 +1,1 @@
-{"strategy": "predictive", "best_params": {"k_base_p": 1.0524449520062267, "alpha_5m_p": 0.273278729612624, "in_patience_p": 14}, "best_value": 13176365.5125}
+{"strategy": "predictive", "best_params": {"k_base_p": 1.1328563029883714, "alpha_5m_p": 0.2745380457453942, "in_patience_p": 14}, "best_value": 13176046.179166667}

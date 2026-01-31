@@ -1,1 +1,1 @@
-{"strategy": "reactive", "best_params": {"max_reduce_r": 1, "in_patience_r": 15, "out_patience_r": 3}, "best_value": 20404557.432499997}
+{"strategy": "reactive", "best_params": {"max_reduce_r": 1, "in_patience_r": 15, "out_patience_r": 3}, "best_value": 12906859.748333335}

@@ -4,9 +4,9 @@ import sys
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from src.train_lgbm import LGBMTrainer
+# from src.train_lgbm import LGBMTrainer
 from src.train_model.train_xgboost import XGBoostTrainer
-from src.train_lstm import LSTMTrainer
+# from src.train_lstm import LSTMTrainer
 
 def train_lgbm():
     print("🚀 Bắt đầu Pipeline huấn luyện mô hình LGBM...")
@@ -98,6 +98,6 @@ def train_lstm():
 
 
 if __name__ == "__main__":
-    train_lgbm()
+    # train_lgbm()
     train_xgboost()
-    train_lstm()
+    # train_lstm()

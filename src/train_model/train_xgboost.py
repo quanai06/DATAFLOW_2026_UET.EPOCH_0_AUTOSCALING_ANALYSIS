@@ -21,8 +21,8 @@ class XGBoostTrainer:
         path = f'data/model_ml/train_{self.timeframe}.parquet'
         df = pd.read_parquet(path).sort_values('timestamp')
 
-        # Chia tập Valid độc lập theo mốc 12/08
-        hold_out_date = pd.to_datetime('1995-08-12 00:00:00').tz_localize(df['timestamp'].dt.tz)
+        # Chia tập Valid độc lập theo mốc 16/08
+        hold_out_date = pd.to_datetime('1995-08-16 00:00:00').tz_localize(df['timestamp'].dt.tz)
         train_full = df[df['timestamp'] < hold_out_date].reset_index(drop=True)
         valid_independent = df[df['timestamp'] >= hold_out_date].reset_index(drop=True)
         

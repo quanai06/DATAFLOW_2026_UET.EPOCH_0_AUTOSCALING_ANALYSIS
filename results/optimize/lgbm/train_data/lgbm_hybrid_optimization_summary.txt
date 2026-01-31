@@ -1,8 +1,8 @@
 KẾT QUẢ TỐI ƯU CHIẾN LƯỢC
 Chiến lược: hybrid
-Giá trị Cost thấp nhất: 8777745.870833334
-Bộ tham số tốt nhất: {'k_base_h': 0.9186330269853776, 'alpha_5m_h': 0.5350945602350775, 'panic_ratio_h': 0.4977567200677213, 'burst_add_h': 1, 'in_patience_h': 10, 'max_reduce_h': 2}
-Số lần scaling events trong mô phỏng: 855
-Tổng số lần soft overload (req + bytes): 124.15424999999996
-Tổng số lần hard overload (req + bytes): 4.961933333333326
+Giá trị Cost thấp nhất: 8782040.9475
+Bộ tham số tốt nhất: {'k_base_h': 1.0944464953132516, 'alpha_5m_h': 0.7542443895641698, 'panic_ratio_h': 0.4999777414132642, 'burst_add_h': 1, 'in_patience_h': 10, 'max_reduce_h': 2}
+Số lần scaling events trong mô phỏng: 846
+Tổng số lần soft overload (req + bytes): 88.43364999999994
+Tổng số lần hard overload (req + bytes): 3.311933333333327
 
