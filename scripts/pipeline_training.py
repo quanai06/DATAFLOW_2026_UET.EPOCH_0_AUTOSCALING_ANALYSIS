@@ -5,7 +5,7 @@ import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from src.train_lgbm import LGBMTrainer
-from src.train_xgboost import XGBoostTrainer
+from src.train_model.train_xgboost import XGBoostTrainer
 from src.train_lstm import LSTMTrainer
 
 def train_lgbm():
@@ -51,6 +51,10 @@ def train_xgboost():
                 trainer = XGBoostTrainer(tf, tg)
                 metrics = trainer.train()
                 all_results.append(metrics)
+                if tf in ['5m', '1m']:
+                    trainer_q90 = XGBoostTrainer(tf, tg, objective='reg:quantileerror', quantile_alpha=0.9)
+                    metrics_q90 = trainer_q90.train()
+                    all_results.append(metrics_q90)
             except Exception as e:
                 print(f"Lỗi khi train {tg} khung {tf}: {e}")
                 
@@ -95,5 +99,5 @@ def train_lstm():
 
 if __name__ == "__main__":
     train_lgbm()
-    # train_xgboost()
-    # train_lstm()
+    train_xgboost()
+    train_lstm()

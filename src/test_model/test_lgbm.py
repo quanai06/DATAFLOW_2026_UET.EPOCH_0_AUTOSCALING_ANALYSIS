@@ -22,7 +22,7 @@ def run_test_inference(model_path, timeframe, target_col):
     model = joblib.load(model_path)
     
     # 3. Load dữ liệu test thực tế từ disk
-    # Lưu ý: folder data/model_ml/ theo cấu trúc ảnh bạn gửi
+    # Lưu ý: folder data/model_ml/ theo cấu trúc
     test_path = f'data/model_ml/test_{timeframe}.parquet'
     
     if not os.path.exists(test_path):

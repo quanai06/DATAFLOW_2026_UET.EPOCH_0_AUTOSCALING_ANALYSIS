@@ -1,0 +1,8 @@
+KẾT QUẢ TỐI ƯU CHIẾN LƯỢC
+Chiến lược: reactive
+Giá trị Cost thấp nhất: 12906859.748333335
+Bộ tham số tốt nhất: {'max_reduce_r': 1, 'in_patience_r': 15, 'out_patience_r': 3}
+Số lần scaling events trong mô phỏng: 196
+Tổng số lần soft overload (req + bytes): 2017.9327666666684
+Tổng số lần hard overload (req + bytes): 1599.4337500000001
+

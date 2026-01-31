@@ -109,7 +109,9 @@ class XGBoostTrainer:
         # File này phục vụ cho việc tính toán Optimizer và viết báo cáo
         csv_path = f'results/xgboost/results_{self.model_name}.csv'
         output = valid_independent[['timestamp', self.target_col]].copy()
+
         output['predicted'] = preds
+
         output.to_csv(csv_path, index=False)
         print(f"Đã lưu kết quả dự báo tại: {csv_path}")
 

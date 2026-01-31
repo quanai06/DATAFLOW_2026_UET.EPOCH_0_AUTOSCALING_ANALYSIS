@@ -1,1 +1,0 @@
-{"strategy": "hybrid", "best_params": {"k_base_h": 0.8302754088113738, "alpha_5m_h": 0.4110379536968809, "panic_ratio_h": 0.49787998043706655, "burst_add_h": 1, "in_patience_h": 10, "max_reduce_h": 2}, "best_value": 13855209.74}

@@ -108,10 +108,13 @@ def objective(trial, df, strategy):
     return total_score
 
 # --- BƯỚC 3: KÍCH HOẠT OPTUNA ---
-def run_optimization(model, strategy):
+def run_optimization(model, strategy, test_model=False):
     study = optuna.create_study(direction="minimize")
 
-    df = pd.read_csv(f'results/merged_{model}_data.csv')
+    if test_model == True:
+        df = pd.read_csv(f'results/merged_test_data/merged_{model}_data_test.csv')
+    else:
+        df = pd.read_csv(f'results/merged_train_data/merged_{model}_data.csv')
 
     study.optimize(lambda trial: objective(trial, df, strategy), n_trials=100) # Thử 100 bộ tham số khác nhau
 
@@ -120,13 +123,21 @@ def run_optimization(model, strategy):
     print(f"Bộ tham số tốt nhất: {study.best_params}")
     
     # Lưu bộ tham số này và giá trị tối ưu nhất lại để dùng cho bản Demo/Báo cáo
-    path_json=f'results/optimize/{model}/{model}_{strategy}_best_strategy_params.json'
+    if test_model == True:
+        path_json=f'results/optimize/{model}/test_data/{model}_{strategy}_test_best_strategy_params.json'
+    else:
+        path_json=f'results/optimize/{model}/train_data/{model}_{strategy}_best_strategy_params.json'
+
     os.makedirs(os.path.dirname(path_json), exist_ok=True)
     with open(path_json, 'w') as f:
         json.dump({"strategy": strategy, "best_params": study.best_params, "best_value": study.best_value}, f)
 
     # Lưu các giá trị vào file txt để tiện theo dõi
-    path_txt=f'results/optimize/{model}/{model}_{strategy}_optimization_summary.txt'
+    if test_model == True:
+        path_txt=f'results/optimize/{model}/test_data/{model}_{strategy}_test_optimization_summary.txt'
+    else:
+        path_txt=f'results/optimize/{model}/train_data/{model}_{strategy}_optimization_summary.txt'
+
     os.makedirs(os.path.dirname(path_txt), exist_ok=True)
     with open(path_txt, 'w', encoding='utf-8') as f:
         f.write(f"KẾT QUẢ TỐI ƯU CHIẾN LƯỢC\n")
@@ -143,6 +154,22 @@ if __name__ == "__main__":
     run_optimization('xgboost', 'predictive')
     run_optimization('xgboost', 'hybrid')
     
-    # run_optimization('lgbm', 'reactive')
-    # run_optimization('lgbm', 'predictive')
-    # run_optimization('lgbm', 'hybrid')
+    run_optimization('lgbm', 'reactive')
+    run_optimization('lgbm', 'predictive')
+    run_optimization('lgbm', 'hybrid')
+
+    run_optimization('lstm', 'reactive')
+    run_optimization('lstm', 'predictive')
+    run_optimization('lstm', 'hybrid')
+
+    run_optimization('xgboost', 'reactive', test_model=True)
+    run_optimization('xgboost', 'predictive', test_model=True)
+    run_optimization('xgboost', 'hybrid', test_model=True)
+
+    run_optimization('lgbm', 'reactive', test_model=True)
+    run_optimization('lgbm', 'predictive', test_model=True)
+    run_optimization('lgbm', 'hybrid', test_model=True)
+
+    run_optimization('lstm', 'reactive', test_model=True)
+    run_optimization('lstm', 'predictive', test_model=True)
+    run_optimization('lstm', 'hybrid', test_model=True)

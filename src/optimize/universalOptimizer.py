@@ -18,20 +18,6 @@ class UniversalOptimizer:
         self.out_counter = 0 #đếm để tăng máy
         self.in_counter = 0 #đếm để giảm máy
 
-        # if mode == "hybrid":
-        #     self.hybrid_opt = HybridOptimizer(
-        #         cap_req=cap_req,
-        #         cap_bytes=cap_bytes,
-        #         k_base=params['k_base'],
-        #         alpha_5m=params['alpha_5m'],
-        #         max_reduce=params['max_reduce'],
-        #         panic_ratio=params['panic_ratio'],
-        #         burst_add=params['burst_add'],
-        #         patience=params['in_patience'],
-        #         target_util=target_util,
-        #         max_servers=max_servers
-        #     )
-
     def calculate_needed(self, row, t):
         
         if self.mode == "reactive":
@@ -51,14 +37,6 @@ class UniversalOptimizer:
             return max(n_15m, n_5m, n_1m), False  # Không có is_panic trong chế độ predictive
         
         else:  # hybrid
-            # return self.hybrid_opt.calculate_base_main(
-            #     f15_req=row.predicted_15m_req,
-            #     f15_bytes=row.predicted_15m_bytes,
-            #     f5_req=row.predicted_5m_req,
-            #     f5_req_q90=row.predicted_5m_q90_req,
-            #     f5_bytes=row.predicted_5m_bytes,
-            #     f5_bytes_q90=row.predicted_5m_q90_bytes
-            # )
             # N_base (15m)
             n_base = math.ceil(max(row.predicted_15m_req * self.params['k_base'] / self.eff_cap_req, 
                                 row.predicted_15m_bytes * self.params['k_base'] / self.eff_cap_bytes))
@@ -105,29 +83,6 @@ class UniversalOptimizer:
             in_patience  = self.params.get("in_patience", 5)
             max_reduce   = self.params.get("max_reduce", 1)
 
-
-        # --- LOGIC ĐIỀU KHIỂN CHUNG ---
-
-        # TRƯỜNG HỢP 1: TĂNG MÁY (SCALE-OUT)
-        # if needed > self.current_servers:
-        #     self.out_counter += 1
-        #     self.in_counter = 0 # Reset đếm giảm
-
-        #     # Điều kiện tăng: 
-        #     # - Hoặc là đã đợi đủ out_patience (cho chế độ Reactive)
-        #     # is_immediate = (self.mode == 'predictive') or (self.mode == 'hybrid' and is_panic)
-            
-        #     if (self.out_counter >= out_patience):
-        #         self.current_servers = needed
-        #         self.last_scale_time = t
-        #         self.out_counter = 0
-
-        #     # is_immediate = (self.mode == 'predictive') or (self.mode == 'hybrid' and is_panic)
-
-        #     # if is_immediate or (self.out_counter >= self.out_patience):
-        #     #     self.current_servers = needed
-        #     #     self.last_scale_time = t
-        #     #     self.out_counter = 0
         # SCALE-OUT
         if needed > self.current_servers:
             self.in_counter = 0
@@ -148,12 +103,6 @@ class UniversalOptimizer:
 
         # TRƯỜNG HỢP 2: GIẢM MÁY (SCALE-IN)
         elif needed < self.current_servers:
-            # self.in_counter += 1
-            # self.out_counter = 0 # Reset đếm tăng
-
-            # # Điều kiện giảm: Luôn cần thận trọng cho mọi mode
-            # # Phải hết Cooldown 5 phút VÀ đủ patience
-            # if (t - self.last_scale_time >= 5) and (self.in_counter >= in_patience):
             self.out_counter = 0
 
             if t - self.last_scale_time < 5:
