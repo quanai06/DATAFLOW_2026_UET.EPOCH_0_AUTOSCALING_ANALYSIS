@@ -69,6 +69,12 @@ if "play" not in st.session_state:
 if "idx" not in st.session_state:
     st.session_state.idx = 0
 
+st.session_state.setdefault("flash_until_hard", 0.0)
+st.session_state.setdefault("flash_until_spike", 0.0)
+st.session_state.setdefault("last_alert_ts", None)
+
+
+
 with st.sidebar:
     st.header("Backend")
     base_url = st.text_input("API base_url", value=os.getenv("AUTOSCALER_API", "http://localhost:8000"))
@@ -247,31 +253,129 @@ if st.session_state.idx > len(sim):
     st.session_state.idx = 0
 
 # metrics
-m1, m2, m3, m4 = st.columns(4)
+# metrics
+m1, m2, m3, m4, m5, m6 = st.columns(6)
 m1.metric("Avg servers", f"{kpi['avg_servers']:.2f}")
 m2.metric("Max servers", f"{kpi['max_servers']}")
 m3.metric("Scaling events", f"{kpi['scaling_events']}")
 m4.metric("Total Cost", f"{kpi['total_score']:.2f}")
+m5.metric("Soft overload minutes", f"{kpi.get('soft_overload_minutes', 0):.0f}")
+m6.metric("Hard overload minutes", f"{kpi.get('hard_overload_minutes', 0):.0f}")
+
 
 st.divider()
 
 tab_full, tab_play = st.tabs(["Full view", "Playback"])
 
-def _render_charts(sim_df: pd.DataFrame):
+def _render_charts(sim_df: pd.DataFrame,show_spike: bool = False,spike_mode: str = "bytes"):
     st.subheader("Servers over time")
-    st.plotly_chart(px.line(sim_df, x="timestamp", y="servers"), use_container_width=True)
+    st.plotly_chart(px.line(sim_df, x="timestamp", y="servers").update_traces(line=dict(width=3)), use_container_width=True)
 
+    COLOR_MAP = {
+        "act_1m_req": "#7FFF85",      # light cyan
+        "cap_req_eff": "#1F77B4",     # blue
+        "cap_req_hard": "#FF4136",    # red
+
+        "act_1m_bytes": "#B3FFB3",    # lighter cyan
+        "cap_bytes_eff": "#0074D9",   # blue
+        "cap_bytes_hard": "#FF851B",  # orange-red (different from req hard)
+    }
+
+    STYLE_MAP = {
+        "act_1m_req": dict(width=1.5),
+        "cap_req_eff": dict(width=3),
+        "cap_req_hard": dict(width=3, dash="dash"),
+
+        "act_1m_bytes": dict(width=1.5),
+        "cap_bytes_eff": dict(width=3),
+        "cap_bytes_hard": dict(width=3, dash="dash"),
+    }
+
+    def plot_actual_vs_capacity(title: str, cols: list[str]):
+        dfp = sim_df[["timestamp"] + cols].melt(
+            id_vars=["timestamp"], var_name="series", value_name="value"
+        )
+
+        fig = px.line(
+            dfp,
+            x="timestamp",
+            y="value",
+            color="series",
+            category_orders={"series": cols},                 # giữ thứ tự legend
+            color_discrete_map={k: COLOR_MAP.get(k) for k in cols},
+        )
+
+        # style từng series
+        for tr in fig.data:
+            s = tr.name
+            if s in STYLE_MAP:
+                tr.update(line=STYLE_MAP[s])
+
+        fig.update_layout(
+            legend_title_text="",
+            hovermode="x unified",
+            margin=dict(l=10, r=10, t=30, b=10),
+        )
+        st.subheader(title)
+        st.plotly_chart(fig, use_container_width=True)
+
+    # ---- Requests chart ----
     req_cols = [c for c in ["act_1m_req", "cap_req_eff", "cap_req_hard"] if c in sim_df.columns]
     if len(req_cols) >= 2:
-        st.subheader("Request: Actual vs Capacity")
-        dfp = sim_df[["timestamp"] + req_cols].melt(id_vars=["timestamp"], var_name="series", value_name="value")
-        st.plotly_chart(px.line(dfp, x="timestamp", y="value", color="series"), use_container_width=True)
+        plot_actual_vs_capacity("Request: Actual vs Capacity", req_cols)
 
+    # ---- Bytes chart ----
     bytes_cols = [c for c in ["act_1m_bytes", "cap_bytes_eff", "cap_bytes_hard"] if c in sim_df.columns]
     if len(bytes_cols) >= 2:
-        st.subheader("Bytes: Actual vs Capacity")
-        dfp = sim_df[["timestamp"] + bytes_cols].melt(id_vars=["timestamp"], var_name="series", value_name="value")
-        st.plotly_chart(px.line(dfp, x="timestamp", y="value", color="series"), use_container_width=True)
+        plot_actual_vs_capacity("Bytes: Actual vs Capacity", bytes_cols)
+
+    # ---- Spike detection chart 
+    if show_spike:
+        st.subheader("Spike detection — Actual vs Threshold")
+
+        mode = spike_mode
+        act_col  = f"act_1m_{mode}"
+        flag_col = f"spike_now_{mode}"
+
+        # backend mới: ưu tiên panic_thr_*, fallback spike_thr_*
+        thr_col = f"panic_thr_{mode}"
+        if thr_col not in sim_df.columns:
+            thr_col = f"spike_thr_{mode}"
+
+        safe_col = f"safe_5m_{mode}"  # nếu backend có thì vẽ thêm, không có thì thôi
+
+        cols = [c for c in [act_col, safe_col, thr_col] if c in sim_df.columns]
+
+        if len(cols) >= 2:
+            dfp = sim_df[["timestamp"] + cols].melt(
+                id_vars=["timestamp"], var_name="series", value_name="value"
+            )
+
+            fig = px.line(
+                dfp,
+                x="timestamp",
+                y="value",
+                color="series",
+                category_orders={"series": cols},
+            )
+            fig.update_layout(hovermode="x unified", legend_title_text="")
+
+            # highlight spike_now bằng chấm đỏ
+            if flag_col in sim_df.columns and act_col in sim_df.columns:
+                sp = sim_df[sim_df[flag_col] == True]
+                if not sp.empty:
+                    fig.add_scatter(
+                        x=sp["timestamp"],
+                        y=sp[act_col],
+                        mode="markers",
+                        name=flag_col,
+                    )
+
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.info("Missing spike columns (need act_1m_* and panic_thr_*/spike_thr_*).")
+
+
 
     overload_cols = [c for c in ["soft_overload_req", "hard_overload_req", "soft_overload_bytes", "hard_overload_bytes"] if c in sim_df.columns]
     if overload_cols:
@@ -298,6 +402,14 @@ with tab_full:
 with tab_play:
     speed = st.slider("Speed (sec/step)", 0.05, 1.0, 0.20, 0.05)
     step_size = st.selectbox("Step size (points per tick)", [1, 2, 5, 10], index=2)
+    st.session_state.setdefault("spike_mode_play", "bytes")
+    st.session_state.spike_mode_play = st.selectbox(
+        "Spike signal (playback)",
+        ["bytes", "req"],
+        index=0 if st.session_state.spike_mode_play == "bytes" else 1,
+        key="spike_mode_play_select",
+    )
+
 
     b1, b2, b3, b4 = st.columns(4)
     if b1.button("Play"):
@@ -312,22 +424,76 @@ with tab_play:
 
     chart_area = st.empty()
     ev_area = st.empty()
+    alert_area = st.empty()
+
 
     def _render_play(idx: int):
         part = sim.iloc[:max(1, idx)].copy()
         with chart_area.container():
-            _render_charts(part)
+            _render_charts(part, show_spike=True, spike_mode=st.session_state.spike_mode_play)
 
         if (not events.empty) and ("timestamp" in events.columns) and (part["timestamp"].notna().any()):
-            cur_ts = part["timestamp"].dropna().iloc[-1]
+            cur_row = part.dropna(subset=["timestamp"]).iloc[-1]
+            cur_ts = cur_row["timestamp"]
             ev_part = events[events["timestamp"] <= cur_ts]
         else:
+            cur_row = None
+            cur_ts = None
             ev_part = events
+        hard_now = False
+        if cur_row is not None:
+            if "hard_overload_req" in part.columns and float(cur_row.get("hard_overload_req", 0.0)) > 0:
+                hard_now = True
+            if "hard_overload_bytes" in part.columns and float(cur_row.get("hard_overload_bytes", 0.0)) > 0:
+                hard_now = True
+
+            spike_conf = bool(cur_row.get("spike_confirmed", False)) if "spike_confirmed" in part.columns else False
+
+            # trigger flash once per timestamp
+            if st.session_state.last_alert_ts != cur_ts:
+                st.session_state.last_alert_ts = cur_ts
+                now = time.time()
+                if hard_now:
+                    st.session_state.alert_flash_until = now + 3.0
+                    st.session_state.alert_flash_level = "hard"
+                    st.toast(f"🚨 HARD OVERLOAD at {cur_ts}", icon="🚨")
+                elif spike_conf:
+                    st.session_state.alert_flash_until = now + 2.0
+                    st.session_state.alert_flash_level = "spike"
+                    st.toast(f"⚠️ Spike confirmed at {cur_ts}", icon="⚠️")
+
+        # render banner
+        with alert_area.container():
+            now = time.time()
+            if now < st.session_state.alert_flash_until:
+                if st.session_state.alert_flash_level == "hard":
+                    st.markdown(
+                        """
+                        <div style="background:#b00020;color:white;padding:14px 16px;border-radius:10px;
+                                    font-weight:800;font-size:18px;box-shadow:0 6px 18px rgba(0,0,0,.35);">
+                            🚨 HARD OVERLOAD — capacity exceeded
+                        </div>
+                        """,
+                        unsafe_allow_html=True,
+                    )
+                elif st.session_state.alert_flash_level == "spike":
+                    st.markdown(
+                        """
+                        <div style="background:#ff9800;color:black;padding:14px 16px;border-radius:10px;
+                                    font-weight:800;font-size:18px;box-shadow:0 6px 18px rgba(0,0,0,.25);">
+                            ⚠️ SPIKE CONFIRMED — abnormal traffic vs forecast
+                        </div>
+                        """,
+                        unsafe_allow_html=True,
+                    )
+            else:
+                st.empty()
 
         with ev_area.container():
             st.subheader("Scale events")
             ev = ev_part[["timestamp", "from", "to","spike_confirmed"]]
             st.dataframe(ev, use_container_width=True)
+        
 
     if st.session_state.play:
         ticks = 25  # giới hạn số tick mỗi rerun

@@ -12,3 +12,9 @@ fastparquet>=2025.12.0
 xgboost>=1.7.6
 optuna>=3.4.2
 python-dotenv>=1.2.1
+pydantic
+dotenv
+fastapi
+uvicorn
+requests
+python-multipart

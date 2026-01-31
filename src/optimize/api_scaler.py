@@ -146,7 +146,7 @@ def simulate_df(
 # =========================
     # Spike detection config
     # =========================
-    spike_ratio = float(params.get("spike_ratio", 1.5))  # act > safe * ratio => spike_now
+    panic_ratio = float(params.get("panic_ratio", 0.5))   # act > safe * ratio => spike_now
     spike_win_k = int(params.get("spike_win_k", 5))      # window K phút
     spike_win_n = int(params.get("spike_win_n", 3))      # >=N lần spike trong K => confirmed
 
@@ -159,54 +159,55 @@ def simulate_df(
     spike_conf_bytes_list: List[bool] = []
     spike_now_list: List[bool] = []
     spike_conf_list: List[bool] = []
+
+    panic_thr_req_list: List[float] = []
+    panic_thr_bytes_list: List[float] = []
+
     # loop
     for t, row in enumerate(df.itertuples(index=False)):
-        s = int(opt.step(row, t))
-        replicas.append(s)
+        s_before = prev_s                 # servers trước khi quyết định tại phút t
+        s_after = int(opt.step(row, t))   # servers sau khi quyết định
+        replicas.append(s_after)
 
-        # penalties are per-minute "area" in (req/s)*min and (bytes/s)*min
-        # soft overload counts only above effective cap but below hard cap
         act_req = float(getattr(row, "act_1m_req"))
         act_bytes = float(getattr(row, "act_1m_bytes"))
 
-         # =========================
-        # Spike detection (req & bytes) vs safe_5m
-        # =========================
-        alpha = float(params.get("alpha_5m", 0.0))
+        # --- spike threshold dùng s_before ---
+        eff_cap_req = s_before * EFF_CAP_REQ
+        eff_cap_bytes = s_before * EFF_CAP_BYTES
 
-        # ---- bytes safe_5m
-        spike_now_bytes = False
-        try:
-            f5_b = float(getattr(row, "predicted_5m_bytes"))
-            f5q_b = float(getattr(row, "predicted_5m_q90_bytes"))
-            safe_b = f5_b + alpha * max(0.0, (f5q_b - f5_b))
-            if safe_b > 0:
-                spike_now_bytes = (act_bytes > safe_b * spike_ratio)
-        except Exception:
-            # fallback: coi spike nếu vượt hard cap hiện tại
-            spike_now_bytes = (act_bytes > s * CAP_BYTES)
+        q90_req = getattr(row, "predicted_5m_q90_req", None)
+        q90_bytes = getattr(row, "predicted_5m_q90_bytes", None)
 
-        # ---- req safe_5m
-        spike_now_req = False
-        try:
-            f5_r = float(getattr(row, "predicted_5m_req"))
-            f5q_r = float(getattr(row, "predicted_5m_q90_req"))
-            safe_r = f5_r + alpha * max(0.0, (f5q_r - f5_r))
-            if safe_r > 0:
-                spike_now_req = (act_req > safe_r * spike_ratio)
-        except Exception:
-            spike_now_req = (act_req > s * CAP_REQ)
+        q90_req = float(q90_req) if q90_req is not None else float(eff_cap_req)
+        q90_bytes = float(q90_bytes) if q90_bytes is not None else float(eff_cap_bytes)
+
+        # IMPORTANT: chặn NaN (nếu q90 là NaN thì mọi so sánh sẽ False)
+        if pd.isna(q90_req):
+            q90_req = float(eff_cap_req)
+        if pd.isna(q90_bytes):
+            q90_bytes = float(eff_cap_bytes)
+
+        panic_thr_req = max(q90_req, float(eff_cap_req))
+        panic_thr_bytes = max(q90_bytes, float(eff_cap_bytes))
+
+        spike_now_req = (act_req > panic_thr_req)
+        spike_now_bytes = (act_bytes > panic_thr_bytes)
+
+        panic_thr_req_list.append(panic_thr_req)
+        panic_thr_bytes_list.append(panic_thr_bytes)
+
 
         # confirmed logic
-        _hist_bytes.append(bool(spike_now_bytes))
-        if len(_hist_bytes) > spike_win_k:
-            _hist_bytes = _hist_bytes[-spike_win_k:]
-        spike_conf_bytes = (sum(_hist_bytes) >= spike_win_n)
-
         _hist_req.append(bool(spike_now_req))
         if len(_hist_req) > spike_win_k:
             _hist_req = _hist_req[-spike_win_k:]
-        spike_conf_req = (sum(_hist_req) >= spike_win_n)
+        spike_conf_req = (sum(_hist_req) >= spike_win_n) and (_hist_req[-1] is True)
+
+        _hist_bytes.append(bool(spike_now_bytes))
+        if len(_hist_bytes) > spike_win_k:
+            _hist_bytes = _hist_bytes[-spike_win_k:]
+        spike_conf_bytes = (sum(_hist_bytes) >= spike_win_n) and (_hist_bytes[-1] is True)
 
         spike_now = bool(spike_now_req or spike_now_bytes)
         spike_conf = bool(spike_conf_req or spike_conf_bytes)
@@ -218,20 +219,20 @@ def simulate_df(
         spike_now_list.append(spike_now)
         spike_conf_list.append(spike_conf)
 
-        soft_overload_req = max(0.0, min(act_req, s * CAP_REQ) - s * EFF_CAP_REQ)
-        soft_overload_bytes = max(0.0, min(act_bytes, s * CAP_BYTES) - s * EFF_CAP_BYTES)
+        soft_overload_req = max(0.0, min(act_req, s_after * CAP_REQ) - s_after * EFF_CAP_REQ)
+        soft_overload_bytes = max(0.0, min(act_bytes, s_after * CAP_BYTES) - s_after * EFF_CAP_BYTES)
 
-        hard_overload_req = max(0.0, act_req - s * CAP_REQ)
-        hard_overload_bytes = max(0.0, act_bytes - s * CAP_BYTES)
+        hard_overload_req = max(0.0, act_req - s_after * CAP_REQ)
+        hard_overload_bytes = max(0.0, act_bytes - s_after * CAP_BYTES)
 
         total_soft_overload_req += soft_overload_req
         total_soft_overload_bytes += soft_overload_bytes
         total_hard_overload_req += hard_overload_req
         total_hard_overload_bytes += hard_overload_bytes
 
-        if s != prev_s:
+        if s_after != prev_s:
             scaling_events += 1
-        prev_s = s
+        prev_s = s_after
 
     # cost components
     count_servers = float(sum(replicas))
@@ -265,6 +266,27 @@ def simulate_df(
     out["hard_overload_req"] = (out["act_1m_req"] - out["cap_req_hard"]).clip(lower=0)
     out["hard_overload_bytes"] = (out["act_1m_bytes"] - out["cap_bytes_hard"]).clip(lower=0)
 
+    out["panic_thr_req"] = panic_thr_req_list
+    out["panic_thr_bytes"] = panic_thr_bytes_list
+    # alias để frontend cũ vẫn vẽ được
+    out["spike_thr_req"] = out["panic_thr_req"]
+    out["spike_thr_bytes"] = out["panic_thr_bytes"]
+
+
+
+
+    step_min = 1.0
+    if "timestamp" in out.columns:
+        dt = out["timestamp"].diff().dropna()
+        if not dt.empty:
+            step_min = float(dt.median().total_seconds() / 60.0)  # usually 1.0 for 1m data
+
+    soft_mask = (out["soft_overload_req"] + out["soft_overload_bytes"]) > 0
+    hard_mask = (out["hard_overload_req"] + out["hard_overload_bytes"]) > 0
+
+    soft_overload_minutes = float(soft_mask.sum() * step_min)
+    hard_overload_minutes = float(hard_mask.sum() * step_min)
+
     # events table
     out["prev_servers"] = out["servers"].shift(1).fillna(out["servers"].iloc[0]).astype(int)
     event_cols = ["timestamp", "prev_servers", "servers",
@@ -284,6 +306,10 @@ def simulate_df(
         "scaling_events": int(scaling_events),
         "total_soft_overload": float(total_soft_overload_req + total_soft_overload_bytes),
         "total_hard_overload": float(total_hard_overload_req + total_hard_overload_bytes),
+
+        "soft_overload_minutes": float(soft_overload_minutes),
+        "hard_overload_minutes": float(hard_overload_minutes),
+
         "server_minutes": float(count_servers),
         "sla_penalty": float(sla_penalty),
         "total_score": float(total_score),
