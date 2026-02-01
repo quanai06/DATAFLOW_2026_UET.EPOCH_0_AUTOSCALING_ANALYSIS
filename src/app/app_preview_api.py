@@ -82,7 +82,7 @@ with st.sidebar:
     
     st.divider()
     st.header("Chọn chiến lược")
-    model = st.selectbox("model",["xgboost","lightgbm","lstm"],index =2)
+    model = st.selectbox("model",["xgboost","lgbm","lstm"],index =2)
     strategy = st.selectbox("strategy", ["reactive", "predictive", "hybrid"], index=2)
 
     st.divider()
@@ -390,7 +390,15 @@ def _render_charts(sim_df: pd.DataFrame,show_spike: bool = False,spike_mode: str
         st.dataframe(sim_df[["timestamp"] + spike_cols], use_container_width=True)
 
 with tab_full:
-    _render_charts(sim)
+    st.subheader("Spike chart settings")
+    spike_mode_full = st.selectbox(
+        "Spike signal (full view)",
+        ["bytes", "req"],
+        index=0,
+        key="spike_mode_full_select",
+    )
+
+    _render_charts(sim, show_spike=True, spike_mode=spike_mode_full)
 
     st.subheader("Scale events")
     events_display = events[["timestamp", "from", "to","spike_confirmed"]]
