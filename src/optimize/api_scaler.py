@@ -188,8 +188,25 @@ def simulate_df(
         eff_cap_bytes = float(s_before * EFF_CAP_BYTES)
 
         # ---------- Spike threshold by strategy ----------            # fixed thresholds (simple detection)
-        panic_thr_req = float(REQ_SPIKE_TH)
-        panic_thr_bytes = float(BYTES_SPIKE_TH)
+        if s_mode == "reactive":
+            # fixed thresholds (simple detection)
+            panic_thr_req = float(REQ_SPIKE_TH)
+            panic_thr_bytes = float(BYTES_SPIKE_TH)
+        else:
+            # predictive/hybrid: use q90 forecast fallback to eff cap
+            q90_req = getattr(row, "predicted_5m_q90_req", None)
+            q90_bytes = getattr(row, "predicted_5m_q90_bytes", None)
+
+            q90_req = float(q90_req) if q90_req is not None else eff_cap_req
+            q90_bytes = float(q90_bytes) if q90_bytes is not None else eff_cap_bytes
+
+            if pd.isna(q90_req):
+                q90_req = eff_cap_req
+            if pd.isna(q90_bytes):
+                q90_bytes = eff_cap_bytes
+
+            panic_thr_req = max(q90_req, eff_cap_req)
+            panic_thr_bytes = max(q90_bytes, eff_cap_bytes)
 
         spike_now_req = (act_req > panic_thr_req)
         spike_now_bytes = (act_bytes > panic_thr_bytes)
