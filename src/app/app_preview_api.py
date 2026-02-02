@@ -267,7 +267,7 @@ st.divider()
 
 tab_full, tab_play = st.tabs(["Full view", "Playback"])
 
-def _render_charts(sim_df: pd.DataFrame,show_spike: bool = False,spike_mode: str = "bytes"):
+def _render_charts(sim_df: pd.DataFrame,show_spike: bool = False,spike_mode: str = "bytes",is_visualize :bool =False):
     st.subheader("Servers over time")
     st.plotly_chart(px.line(sim_df, x="timestamp", y="servers").update_traces(line=dict(width=3)), use_container_width=True)
 
@@ -328,6 +328,85 @@ def _render_charts(sim_df: pd.DataFrame,show_spike: bool = False,spike_mode: str
     bytes_cols = [c for c in ["act_1m_bytes", "cap_bytes_eff", "cap_bytes_hard"] if c in sim_df.columns]
     if len(bytes_cols) >= 2:
         plot_actual_vs_capacity("Bytes: Actual vs Capacity", bytes_cols)
+    if is_visualize:
+        st.subheader("Distribution: Servers")
+
+        fig = px.histogram(
+            sim,
+            x="servers",
+            nbins=30,
+            title="Replica count distribution",
+        )
+
+        # style cho cột histogram
+        fig.update_traces(
+            marker=dict(line=dict(width=1.2, color="white")),
+            opacity=0.9,
+            hovertemplate="Servers=%{x}<br>Count=%{y}<extra></extra>",
+        )
+
+        # thêm mean/median lines
+        mean_s = float(sim["servers"].mean())
+        median_s = float(sim["servers"].median())
+
+        fig.add_vline(x=mean_s, line_width=2, line_dash="dash", annotation_text=f"mean={mean_s:.2f}", annotation_position="top left")
+        fig.add_vline(x=median_s, line_width=2, line_dash="dot", annotation_text=f"median={median_s:.0f}", annotation_position="top right")
+
+        fig.update_layout(
+            title=dict(x=0.5),
+            bargap=0.05,
+            margin=dict(l=10, r=10, t=50, b=10),
+            xaxis_title="Servers (replicas)",
+            yaxis_title="Count (minutes)",
+        )
+
+        st.plotly_chart(fig, width="stretch")
+
+
+        st.subheader("Cost breakdown")
+
+        server_cost = float(kpi["server_minutes"]) * float(health.get("cost_per_server_per_min", 1.0))
+        scaling_cost = float(kpi["scaling_events"]) * float(health.get("cost_scaling_event", 1.0))
+        sla_cost = float(kpi["sla_penalty"])
+
+        cost_df = pd.DataFrame({
+            "component": ["Server cost", "SLA penalty", "Scaling cost"],
+            "value": [server_cost, sla_cost, scaling_cost],
+        })
+
+        COLOR_MAP = {
+            "Server cost": "#964CA8",
+            "SLA penalty": "#A8F518",
+            "Scaling cost": "#4B98A2",
+        }
+
+        fig = px.pie(
+            cost_df,
+            names="component",
+            values="value",
+            hole=0.38,
+            color="component",
+            color_discrete_map=COLOR_MAP,
+        )
+
+        fig.update_traces(
+            textinfo="percent+label",
+            textposition="outside",
+            pull=[0.03, 0.06, 0.03],  # kéo nhẹ lát SLA penalty ra để nổi bật
+            marker=dict(line=dict(width=2, color="white")),
+            hovertemplate="<b>%{label}</b><br>Cost: %{value:,.2f}<br>Share: %{percent}<extra></extra>",
+        )
+
+        fig.update_layout(
+            title=dict(text="Total Cost Breakdown", x=0.5, xanchor="center"),
+            legend_title_text="",
+            margin=dict(l=10, r=10, t=50, b=10),
+        )
+
+        st.plotly_chart(fig, width="stretch")
+
+
+
 
     # ---- Spike detection chart 
     if show_spike:
@@ -398,7 +477,7 @@ with tab_full:
         key="spike_mode_full_select",
     )
 
-    _render_charts(sim, show_spike=True, spike_mode=spike_mode_full)
+    _render_charts(sim, show_spike=True, spike_mode=spike_mode_full,is_visualize=True)    
 
     st.subheader("Scale events")
     events_display = events[["timestamp", "from", "to","spike_confirmed"]]

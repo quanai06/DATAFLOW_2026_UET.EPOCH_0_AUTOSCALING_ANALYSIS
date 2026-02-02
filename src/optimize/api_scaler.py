@@ -378,6 +378,8 @@ def health() -> Dict[str, Any]:
         "cap_bytes": CAP_BYTES,
         "target_util": TARGET_UTIL,
         "max_servers": MAX_SERVERS,
+        "cost_per_server_per_min": COST_PER_SERVER_PER_MIN,
+        "cost_scaling_event": COST_SCALING_EVENT,
     }
 
 
