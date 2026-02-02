@@ -69,10 +69,10 @@ cd
 ### 2. Tạo môi trường ảo (khuyến nghị)
 ```bash
 python -m venv venv
-# Trên Linux
-source venv/bin/activate  
+# Trên Linux/Macos
+source .venv/bin/activate  
 # Trên Windows: 
-source venv\Scripts\activate
+source .venv\Scripts\activate
 ```
 
 ### 3. Cài đặt thư viện
