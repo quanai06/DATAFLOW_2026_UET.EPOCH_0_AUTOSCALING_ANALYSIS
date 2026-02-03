@@ -71,7 +71,7 @@ Giảm thiểu tối đa chi phí thuê máy chủ nhưng vẫn đảm bảo đ�
 # 🚀 5. Triển khai và demo
 **Yêu cầu hệ thống:**
 
-Python 3.8 trở lên.
+Python 3.10 trở lên, tối thiểu 8gb RAM 
 
 Các thư viện phụ thuộc trong file requirements.txt
 
@@ -83,7 +83,7 @@ cd DATAFLOW_2026_UET.EPOCH_0_AUTOSCALING_ANALYSIS
 
 ### 2. Tạo môi trường ảo (khuyến nghị)
 ```bash
-python -m venv venv
+python -m venv .venv
 # Trên Linux/Macos
 source .venv/bin/activate  
 # Trên Windows: 
@@ -107,10 +107,10 @@ Chạy lần lượt các file theo thứ tự sau:
 
 ```
 
-### Xử lý dữ liệu
-1. **Làm sạch dữ liệu**: Chạy `src/Clean_data/.......`
+### Chạy dự án 
+1. **Làm sạch dữ liệu**: Chạy ```python src/scripts/pipeline_data.py ```
 2. **Tổng hợp dữ liệu**: Chạy `src/Aggregate_data/.......`
-3. **Trực quan hóa**: Chạy `src/Visualization/.....`
+3. **Chạy dashboard**: Chạy ```python run_app.py```
 
 ### Tạo báo cáo
 ```bash
