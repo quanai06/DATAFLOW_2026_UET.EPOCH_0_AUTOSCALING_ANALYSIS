@@ -41,7 +41,7 @@ Dự án này giải quyết hai bài toán cốt lõi:
 **Giá trị thực tiễn**:
 Giảm thiểu tối đa chi phí thuê máy chủ nhưng vẫn đảm bảo độ trễ thấp và tính sẵn sàng cao cho dịch vụ
 
-## 2. Dữ liệu:
+## 📂 2. Dữ liệu:
 
 **Nguồn**: Bộ dữ liệu nhật ký truy cập HTTP (Web Log) của máy chủ NASA trung tâm vũ trụ Kennedy (07/1995 - 08/1995)
 
@@ -60,7 +60,7 @@ Giảm thiểu tối đa chi phí thuê máy chủ nhưng vẫn đảm bảo đ�
 
 **Tránh data leakage bằng cách**
 
-## 4. Đánh giá
+## ✅ 4. Đánh giá
 
 **Metrics**
 
@@ -68,7 +68,7 @@ Giảm thiểu tối đa chi phí thuê máy chủ nhưng vẫn đảm bảo đ�
 
 **Phân tích trade-off**
 
-# 5. Triển khai và demo
+# 🚀 5. Triển khai và demo
 **Yêu cầu hệ thống:**
 
 Python 3.8 trở lên.

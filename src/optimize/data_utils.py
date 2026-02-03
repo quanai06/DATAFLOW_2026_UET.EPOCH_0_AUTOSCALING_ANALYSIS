@@ -5,9 +5,9 @@ import pandas as pd
 # Chuyển về dạng req/s và bytes/s cho từng khoảng thời gian
 # Xử lý khoảng trống bằng forward-fill
 
-def change_to_per_second(model, timeframe, suffix='', test_model=''):
-    df_req = pd.read_csv(os.path.join('results', model, f'results_{model}{test_model}_y_req_t1_{timeframe}{suffix}.csv'))
-    df_bytes = pd.read_csv(os.path.join('results', model, f'results_{model}{test_model}_y_bytes_imp_t1_{timeframe}{suffix}.csv'))
+def change_to_per_second(model, timeframe, suffix=''):
+    df_req = pd.read_csv(os.path.join('results', model, f'results_{model}_y_req_t1_{timeframe}{suffix}.csv'))
+    df_bytes = pd.read_csv(os.path.join('results', model, f'results_{model}_y_bytes_imp_t1_{timeframe}{suffix}.csv'))
     
     # Chuyển đổi dự báo về đơn vị per second
     factor = {'1m': 60, '5m': 300, '15m': 900}[timeframe]
@@ -23,15 +23,15 @@ def change_to_per_second(model, timeframe, suffix='', test_model=''):
     df_bytes['timestamp'] = pd.to_datetime(df_bytes['timestamp'])
     return df_req, df_bytes
 
-def merge_multiresolution_data(model, test_model=''):
+def merge_multiresolution_data(model):
     print(">>> Đang hợp nhất dữ liệu đa độ phân giải...")
     
     # Load và đổi đơn vị
-    req_1m, bytes_1m = change_to_per_second(model, '1m', test_model=test_model)
-    req_1m_q90, bytes_1m_q90 = change_to_per_second(model, '1m', suffix='_q90', test_model=test_model)
-    req_5m, bytes_5m = change_to_per_second(model, '5m', test_model=test_model)
-    req_5m_q90, bytes_5m_q90 = change_to_per_second(model, '5m', suffix='_q90', test_model=test_model)
-    req_15m, bytes_15m = change_to_per_second(model, '15m', test_model=test_model)
+    req_1m, bytes_1m = change_to_per_second(model, '1m')
+    req_1m_q90, bytes_1m_q90 = change_to_per_second(model, '1m', suffix='_q90')
+    req_5m, bytes_5m = change_to_per_second(model, '5m')
+    req_5m_q90, bytes_5m_q90 = change_to_per_second(model, '5m', suffix='_q90')
+    req_15m, bytes_15m = change_to_per_second(model, '15m')
     
     # Merge
     df = pd.merge(req_1m, bytes_1m, on='timestamp')
@@ -57,7 +57,6 @@ def merge_multiresolution_data(model, test_model=''):
 
 if __name__ == "__main__":
     os.makedirs('results/merged_train_data', exist_ok=True)
-    os.makedirs('results/merged_test_data', exist_ok=True)
 
     df = merge_multiresolution_data('xgboost')
     df.to_csv('results/merged_train_data/merged_xgboost_data.csv', index=False)
@@ -70,16 +69,3 @@ if __name__ == "__main__":
     df = merge_multiresolution_data('lstm')
     df.to_csv('results/merged_train_data/merged_lstm_data.csv', index=False)
     print("Đã lưu dữ liệu hợp nhất tại: results/merged_train_data/merged_lstm_data.csv")
-
-    # Lưu cho file test
-    df = merge_multiresolution_data('xgboost', test_model='_test')
-    df.to_csv('results/merged_test_data/merged_xgboost_data_test.csv', index=False)
-    print("Đã lưu dữ liệu hợp nhất tại: results/merged_test_data/merged_xgboost_data_test.csv")
-
-    df = merge_multiresolution_data('lgbm', test_model='_test')
-    df.to_csv('results/merged_test_data/merged_lgbm_data_test.csv', index=False)
-    print("Đã lưu dữ liệu hợp nhất tại: results/merged_test_data/merged_lgbm_data_test.csv")
-    
-    df = merge_multiresolution_data('lstm', test_model='_test')
-    df.to_csv('results/merged_test_data/merged_lstm_data_test.csv', index=False)
-    print("Đã lưu dữ liệu hợp nhất tại: results/merged_test_data/merged_lstm_data_test.csv")
