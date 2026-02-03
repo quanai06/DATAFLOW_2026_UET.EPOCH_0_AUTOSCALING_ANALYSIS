@@ -1,20 +1,27 @@
 import pandas as pd
 import os
 import sys
+import argparse
+import numpy as np
+import random
+import tensorflow as tf
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-# from src.train_lgbm import LGBMTrainer
+from src.train_model.train_lgbm import LGBMTrainer
 from src.train_model.train_xgboost import XGBoostTrainer
-# from src.train_lstm import LSTMTrainer
+from src.train_model.train_lstm import LSTMTrainer
+
+SEED = 42
+np.random.seed(SEED)
+random.seed(SEED)
+tf.random.set_seed(SEED)
+
+timeframes = ['1m', '5m', '15m']
+targets = ['y_req_t1', 'y_bytes_imp_t1']
+all_results = []
 
 def train_lgbm():
-    print("🚀 Bắt đầu Pipeline huấn luyện mô hình LGBM...")
-    
-    timeframes = ['1m', '5m', '15m']
-    targets = ['y_req_t1', 'y_bytes_imp_t1']
-    all_results = []
-
     for tf in timeframes:
         for target in targets:
             try:
@@ -24,10 +31,10 @@ def train_lgbm():
 
                 trainer = LGBMTrainer(timeframe=tf, target_col=target, quantile=q_val)
                 metrics = trainer.train()
-                print(f"✅ Hoàn thành LGBM: {target} | {tf}")
+                print(f"Hoàn thành LGBM: {target} | {tf}")
                 all_results.append(metrics)
             except Exception as e:
-                print(f"❌ Lỗi LGBM {target} {tf}: {e}")
+                print(f"Lỗi LGBM {target} {tf}: {e}")
     
     if all_results:
         summary_df = pd.DataFrame(all_results)
@@ -39,12 +46,6 @@ def train_lgbm():
         
 
 def train_xgboost():
-    # Danh sách các khung thời gian và mục tiêu cần train theo đề bài
-    timeframes = ['1m', '5m', '15m']
-    targets = ['y_req_t1', 'y_bytes_imp_t1']
-    
-    all_results = []
-    
     for tf in timeframes:
         for tg in targets:
             try:
@@ -55,10 +56,10 @@ def train_xgboost():
                     trainer_q90 = XGBoostTrainer(tf, tg, objective='reg:quantileerror', quantile_alpha=0.9)
                     metrics_q90 = trainer_q90.train()
                     all_results.append(metrics_q90)
+                    
             except Exception as e:
                 print(f"Lỗi khi train {tg} khung {tf}: {e}")
                 
-    # In bảng tổng hợp kết quả để đưa vào báo cáo
     if all_results:
         summary_df = pd.DataFrame(all_results)
         print("\n" + "="*50)
@@ -68,12 +69,6 @@ def train_xgboost():
         summary_df.to_csv('results/xgboost/xgboost_performance_report.csv', index=False)
 
 def train_lstm():
-    print("🚀 Bắt đầu Pipeline huấn luyện mô hình LSTM...")
-    
-    timeframes = ['1m', '5m', '15m']
-    targets = ['y_req_t1', 'y_bytes_imp_t1']
-    all_results = []
-
     for tf in timeframes:
         for target in targets:
             try:
@@ -84,9 +79,9 @@ def train_lstm():
                 trainer = LSTMTrainer(timeframe=tf, target_col=target, quantile=q_val)
                 metrics = trainer.train()
                 all_results.append(metrics)
-                print(f"✅ Hoàn thành LSTM: {target} | {tf}")
+                print(f"Hoàn thành LSTM: {target} | {tf}")
             except Exception as e:
-                print(f"❌ Lỗi LSTM {target} {tf}: {e}")
+                print(f"Lỗi LSTM {target} {tf}: {e}")
     
     if all_results:
         summary_df = pd.DataFrame(all_results)
@@ -97,7 +92,31 @@ def train_lstm():
         summary_df.to_csv('results/lstm/lstm_performance_report.csv', index=False)
 
 
+TRAINERS = {
+    "xgboost": train_xgboost,
+    "lgbm": train_lgbm,
+    "lstm": train_lstm
+}
+
 if __name__ == "__main__":
-    # train_lgbm()
-    train_xgboost()
-    # train_lstm()
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--model",
+        choices=["xgboost", "lgbm", "lstm", "all"],
+        default="lstm"
+    )
+    parser.add_argument(
+        "--mode",
+        choices=["train", "load"],
+        default="load"
+    )
+    args = parser.parse_args()
+
+    if args.mode == "train":
+        if args.model == "all":
+            for fn in TRAINERS.values():
+                fn()
+        else:
+            TRAINERS[args.model]()
+    else:
+        print("⚡ LOAD MODE: Skip training, use pretrained models")
