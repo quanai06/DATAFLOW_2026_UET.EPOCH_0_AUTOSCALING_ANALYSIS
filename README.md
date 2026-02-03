@@ -28,49 +28,131 @@
 
 ## 📖 1. Tóm tắt
 
-Dự án thuộc khuôn khổ cuộc thi DATAFLOW 2026 - Câu lạc bộ Toán Tin HAMIC.
+Dự án thuộc khuôn khổ cuộc thi **DATAFLOW 2026** — Câu lạc bộ Toán Tin **HAMIC**.
 
-**Vấn đề cần giải quyết**:
-Trong quản trị hệ thống đám mây, việc cấp phát tài nguyên tĩnh thường dẫn đến lãng phí khi thấp tải hoặc sập hệ thống (Overload) khi cao tải. 
+### Bối cảnh & vấn đề
+Trong quản trị hệ thống đám mây, **cấp phát tài nguyên tĩnh** thường gây:
+- **Lãng phí** khi thấp tải (over-provision)
+- **Sập hệ thống / timeout** khi cao tải (overload)
 
-**Ý tưởng và cách tiếp cận**:
-Dự án này giải quyết hai bài toán cốt lõi:
-1. **Time-Series Forecasting**: Dự báo lưu lượng truy cập (Request/Bytes) trong tương lai sử dụng các mô hình: XGBoost, LightGBM, LSTM.
-2. **Cost Optimization**: Xây dựng thuật toán Autoscaling thông minh để cân bằng giữa chi phí thuê server và cam kết chất lượng dịch vụ (SLA).
+### Ý tưởng & cách tiếp cận
+Dự án giải quyết 2 bài toán chính:
 
-**Giá trị thực tiễn**:
-Giảm thiểu tối đa chi phí thuê máy chủ nhưng vẫn đảm bảo độ trễ thấp và tính sẵn sàng cao cho dịch vụ
+1. **Time-Series Forecasting**  
+   Dự báo lưu lượng truy cập trong tương lai theo 2 tín hiệu:
+   - **Requests** (số request theo thời gian)
+   - **Bytes** (tổng dữ liệu truyền tải theo thời gian)  
+   Mô hình sử dụng: **XGBoost, LightGBM, LSTM**.
 
-## 📂 2. Dữ liệu:
+2. **Cost Optimization (Autoscaling Policy)**  
+   Xây dựng thuật toán autoscaling nhằm tối ưu:
+   - **Chi phí thuê server**
+   - **Mức độ vi phạm SLA** (soft/hard overload)
+   - **Tính ổn định vận hành** (hạn chế flapping qua scaling event cost)
 
-**Nguồn**: Bộ dữ liệu nhật ký truy cập HTTP (Web Log) của máy chủ NASA trung tâm vũ trụ Kennedy (07/1995 - 08/1995)
+### Giá trị thực tiễn
+Giảm chi phí thuê máy chủ nhưng vẫn đảm bảo **độ trễ thấp** và **tính sẵn sàng cao** cho dịch vụ.
 
-**Mô tả trường dữ liệu chính** ```host, timestamp, request, status, bytes```
+---
 
-**Tiền xử lý đã thực hiện**
+## 📂 2. Dữ liệu
+
+### Nguồn dữ liệu
+Bộ **HTTP Web Log** của máy chủ NASA (Kennedy Space Center), giai đoạn **07/1995 – 08/1995**.
+
+### Trường dữ liệu chính
+`host, timestamp, request, status, bytes`
+
+### Tiền xử lý đã thực hiện
+- Làm sạch log (chuẩn hóa format request, status, bytes; loại bỏ dòng lỗi)
+- Resample theo nhiều tầng thời gian: **1m / 5m / 15m**
+- Feature engineering cho time-series:
+  - time features: `hour, weekday, is_weekend, ...`
+  - traffic features: rolling/lag (`req_lag`, `bytes_lag`, rolling mean/std, ...)
+  - quality signals: `error_rate`, `server_error_rate`, `bytes_missing_rate`, ...
+- Tách dữ liệu train/valid/test theo **time-based split** để tránh leakage.
 
 
-## 3. Mô hình và kiến trúc
+---
 
-**Kiến trúc tổng thể**
+## 🏗️ 3. Mô hình và kiến trúc
 
-**Mô hình sử dụng**
+### Kiến trúc tổng thể
+Pipeline gồm 2 khối độc lập:
 
-**Chiến lược validation/training**
+1. **Forecasting Service**  
+   Input: dữ liệu lịch sử (1m/5m/15m) + feature  
+   Output: dự báo `pred_req`, `pred_bytes` cho các horizon tương ứng
 
-**Tránh data leakage bằng cách**
+2. **Autoscaling Optimizer**  
+   Input: `act_1m_req/bytes` + `pred_5m` + `pred_15m` (tùy chiến lược)  
+   Output: `recommended_servers` theo từng phút, kèm scaling events và SLA penalties
+
+### Mô hình sử dụng
+- **XGBoost**: baseline mạnh, tốc độ train nhanh, ổn định
+- **LightGBM**: nhanh, phù hợp feature tabular/rolling/lag
+- **LSTM**: nắm trend theo chuỗi, phù hợp khi pattern theo thời gian rõ
+
+### Chiến lược validation/training
+- **Time-based split** (không shuffle)
+- Đánh giá theo từng horizon (1m/5m/15m)
+- So sánh mô hình theo:
+  - Forecast accuracy (MAPE/RMSE/MAE)
+  - Downstream autoscaling cost (chi phí + SLA)
+
+### Tránh data leakage
+- Không dùng thông tin tương lai (t+1 trở đi) trong feature tại thời điểm t
+- Lag/rolling được tính thuần từ lịch sử
+- Train/valid/test được tách theo mốc thời gian liên tục
+
+---
 
 ## ✅ 4. Đánh giá
 
-**Metrics**
+### Metrics
+**Forecasting**
+- MAE / RMSE / MSE / MAPE 
 
-**Kết quả**
+**Autoscaling**
+- **Total Cost** = server cost + SLA penalty (soft/hard) + scaling events cost
+- **Soft Overload**: phần vượt quá “ngưỡng an toàn” (effective capacity)
+- **Hard Overload**: phần vượt quá “ngưỡng cứng” (hard capacity)
+- **Scaling Events**: số lần thay đổi số server (đánh đổi ổn định)
 
-**Phân tích trade-off**
+### Kết quả chính (tóm tắt)
+- **Hiệu quả chi phí (Cost Efficiency):**  
+  Chiến lược **Hybrid** đạt hiệu quả chi phí tốt nhất.  
+  Cụ thể, **Hybrid (LSTM)** giảm khoảng **30.3% tổng chi phí** so với **Reactive**
+  (**~11.74M vs ~16.84M**).  
+  So với **Predictive**, Hybrid vẫn tiết kiệm thêm khoảng **12–17%**, cho thấy việc kết hợp
+  giữa dự báo và cơ chế phản ứng theo thời gian thực giúp tối ưu phân bổ tài nguyên.
+
+- **Độ an toàn & độ tin cậy SLA (Reliability):**  
+  **Reactive** gây ra **Hard Overload ~472–479 phút**.  
+  **Predictive** giảm xuống còn **~101–125 phút**.  
+  **Hybrid** tiếp tục cải thiện rõ rệt, đặc biệt **Hybrid (LightGBM)** chỉ còn **~83 phút**  
+  → giảm khoảng **82–83%** vi phạm nghiêm trọng so với Reactive.
+
+  > Lưu ý: Soft/Hard overload được tính theo **tổng mức chênh lệch tải vs năng lực** (diện tích vượt tải),
+  > không phải số lần vi phạm. Vì vậy Hybrid có thể xuất hiện nhiều thời điểm quá tải nhỏ lẻ,
+  > nhưng tổng mức vượt tải vẫn thấp hơn → kiểm soát rủi ro tốt hơn.
+
+- **Hành vi vận hành (System Behavior):**  
+  **Hybrid** có số lần **Scaling Events** cao nhất (**~900–1,100**) so với:
+  - Reactive (**~265**)
+  - Predictive (**~330–580**)  
+  Điều này cho thấy Hybrid điều chỉnh thường xuyên hơn để bám sát biến động tải.
+  Đổi lại, hệ thống duy trì mức vượt tải nhỏ và ổn định hơn, nhưng tăng tần suất thay đổi tài nguyên.
+
+### Phân tích trade-off
+- **Reactive:** ổn định (ít scaling events) nhưng dễ “đuối” khi spike → hard overload cao
+- **Predictive:** giảm overload mạnh, nhưng phụ thuộc sai số dự báo
+- **Hybrid:** cân bằng tốt nhất giữa **cost** và **reliability**, đổi lại **scaling events** tăng
+
 
 # 🚀 5. Triển khai và demo
 ## video cách chạy và giải thích chức năng của demo dự án  
-- [Download from Google Drive](https://drive.google.com/file/d/FILE_ID/view?usp=sharing)
+- [video cách chạy và sử dụng](https://drive.google.com/file/d/FILE_ID/view?usp=sharing)
 
 **Yêu cầu hệ thống:**
 
@@ -106,15 +188,15 @@ cp .env.example .env
 
 ### Chạy toàn bộ pipeline để kiểm chứng
 Chạy lần lượt các file theo thứ tự sau:
-```
-#chạy xử lí data
+```bash
+# chạy xử lí data
 python src/scripts/pipeline_data.py
-#load model
-#chạy app rồi truy cập đường dẫn (http://localhost:8501)
+#l oad model
+# chạy app rồi truy cập đường dẫn (http://localhost:8501)
 python run_app.py 
 ```
 ### Nếu chỉ cần xem demo và sử dụng  
-```
+```bash 
 python run_app.py
 ```
 ## 6. Giới hạn và hướng phát triển
