@@ -62,8 +62,8 @@ Python 3.8 trở lên.
 Các thư viện phụ thuộc trong file requirements.txt
 ### 1. Clone dự án
 ```bash
-git clone 
-cd 
+git clone https://github.com/quanai06/DATAFLOW_2026_UET.EPOCH_0_AUTOSCALING_ANALYSIS.git
+cd DATAFLOW_2026_UET.EPOCH_0_AUTOSCALING_ANALYSIS
 ```
 
 ### 2. Tạo môi trường ảo (khuyến nghị)
@@ -80,22 +80,9 @@ source .venv\Scripts\activate
 pip install -r requirements.txt
 ```
 ### 4. Cấu hình môi trường
-Tạo file .env tại thư mục gốc để thiết lập chi phí giả định:
+Tạo file .env bằng cách sao chép file mẫu .env.example tại thư mục gốc để thiết lập chi phí giả định:
 ```bash
-CAP_REQ=0.2
-CAP_BYTES=5
-COST_PER_SERVER_PER_MIN=100
-COST_SOFT_SLA_PENALTY_REQ=200
-COST_SOFT_SLA_PENALTY_BYTES=150
-COST_HARD_SLA_PENALTY_REQ=5000
-COST_HARD_SLA_PENALTY_BYTES=4000
-COST_SCALING_EVENT=500
-TARGET_UTIL=0.8
-MAX_SERVERS=20
-REQ_SPIKE_TH=1.4
-BYTES_SPIKE_TH=30
-SPIKE_WIN_K=5
-SPIKE_WIN_N=3
+cp .env.example .env
 ```
 ## 📋 Cách sử dụng
 
@@ -118,23 +105,23 @@ python src/Clean_data/generate_qa_reports.ipynb
 ## 📁 Cấu trúc dự án
 
 ```
-2526-LTXLDL-Project-AIT2006-4-2.1/
+DATAFLOW_2026_UET.EPOCH_0_AUTOSCALING_ANALYSIS
 ├── README.md                    # Tài liệu dự án
 ├── requirements.txt             # Danh sách thư viện
 ├── figures/                     # Hình ảnh và biểu đồ
-│   ├── Point_Maps_Keywords_HH_DD_MM_YYYY/
-│   ├── Selected_Highlights_For_Report/
-│   └── WordClouds_Keywords_HH_DD_MM_YYYY/
-|   └── Early_Patients_Analysis.png
-|   └── Advanced_lineplot_symptom_trend_daily_full_data.png
-|   └── Early_Patients_Analysis.png
-|   └── keyword_count_overtime.png
-|   └── lineplot_symptom_trend_daily.png
-|   └── lineplot_symptom_trend_hourly.png
-|   └── spread_animation.gif
-|   └── symptom_keyword_vs_weather_type.png
-|   └── symptom_keyword_vs_wind_direction.png
-|   └── symptom_keyword_vs_wind_speed.png
+│   ├── 
+│   ├── 
+│   └── 
+|   └── 
+|   └── 
+|   └── 
+|   └── 
+|   └── 
+|   └── 
+|   └── 
+|   └── 
+|   └── 
+|   └── 
 ├── processed/                   # Dữ liệu đã xử lý
 │   ├── keywords.csv
 │   ├── Microblogs_Cleaned.csv

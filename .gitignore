@@ -3,3 +3,4 @@ temp_extracted/
 **/__pycache__/
 *.pyc
 *.venv/
+.env
