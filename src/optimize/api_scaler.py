@@ -400,7 +400,7 @@ def best_params(model: str, strategy: str) -> BestParamsResponse:
     )
 @app.get("/time-range")
 def time_range(model: str, merged_csv_path: Optional[str] = None) -> Dict[str, Any]:
-    csv_path = merged_csv_path or f"results/merged_test_data/merged_{model}_data_test.csv"
+    csv_path = merged_csv_path or f"results/merged_test_data/merged_{model}_test_data.csv"
     df = pd.read_csv(csv_path)
     if "timestamp" not in df.columns:
         return {"ok": False, "error": "No timestamp column", "csv_path": csv_path}
@@ -426,7 +426,7 @@ def simulate_best(req: SimulateBestRequest) -> Dict[str, Any]:
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    csv_path = req.merged_csv_path or f"results/merged_test_data/merged_{req.model}_data_test.csv"
+    csv_path = req.merged_csv_path or f"results/merged_test_data/merged_{req.model}_test_data.csv"
     if not os.path.exists(csv_path):
         raise HTTPException(status_code=404, detail=f"Merged CSV not found: {csv_path}")
 

@@ -5,6 +5,8 @@ from universalOptimizer import UniversalOptimizer
 from dotenv import load_dotenv
 import json
 
+SEED = 42
+
 # Load environment variables from .env file
 load_dotenv()
 
@@ -109,7 +111,8 @@ def objective(trial, df, strategy):
 
 # --- BƯỚC 3: KÍCH HOẠT OPTUNA ---
 def run_optimization(model, strategy):
-    study = optuna.create_study(direction="minimize")
+    sampler = optuna.samplers.TPESampler(seed=SEED)
+    study = optuna.create_study(direction="minimize",sampler=sampler)
 
     df = pd.read_csv(f'results/merged_train_data/merged_{model}_data.csv')
 
