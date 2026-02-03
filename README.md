@@ -69,6 +69,9 @@ Giảm thiểu tối đa chi phí thuê máy chủ nhưng vẫn đảm bảo đ�
 **Phân tích trade-off**
 
 # 🚀 5. Triển khai và demo
+## video cách chạy và giải thích chức năng của demo dự án  
+- [Download from Google Drive](https://drive.google.com/file/d/FILE_ID/view?usp=sharing)
+
 **Yêu cầu hệ thống:**
 
 Python 3.10 trở lên, tối thiểu 8gb RAM 
@@ -101,32 +104,73 @@ cp .env.example .env
 ```
 ## 📋 Cách sử dụng
 
-### Chạy toàn bộ pipeline
+### Chạy toàn bộ pipeline để kiểm chứng
+Chạy lần lượt các file theo thứ tự sau:
 ```
-Chạy lần lượt các file theo thứ tự sau: 
-
+#chạy xử lí data
+python src/scripts/pipeline_data.py
+#load model
+#chạy app rồi truy cập đường dẫn (http://localhost:8501)
+python run_app.py 
 ```
-
-### Chạy dự án 
-1. **Làm sạch dữ liệu**: Chạy ```python src/scripts/pipeline_data.py ```
-2. **Tổng hợp dữ liệu**: Chạy `src/Aggregate_data/.......`
-3. **Chạy dashboard**: Chạy ```python run_app.py```
-
-### Tạo báo cáo
-```bash
-python src/Clean_data/generate_qa_reports.ipynb
+### Nếu chỉ cần xem demo và sử dụng  
+```
+python run_app.py
 ```
 ## 6. Giới hạn và hướng phát triển
 
-* **Giới hạn hiện tại:** Dữ liệu năm 1995 chưa có các thông số về CPU/RAM thực tế để kiểm chứng độ trễ hệ thống (Latency).
+### Giới hạn hiện tại
+- **Thiếu số liệu hạ tầng thực tế (CPU/RAM/Latency):** Dataset năm 1995 chỉ phản ánh log truy cập (requests/bytes) nên chưa thể kiểm chứng trực tiếp các chỉ số vận hành như **độ trễ (latency)**, **CPU/RAM usage**, **queue length**.
+- **Môi trường mô phỏng đơn giản:** Chi phí và SLA penalty được mô hình hóa theo công thức tuyến tính; chưa mô phỏng đầy đủ các hiện tượng thực tế như cold start, network bottleneck, cache hit/miss.
+- **Phụ thuộc vào chất lượng dự báo:** Predictive/Hybrid chịu ảnh hưởng bởi sai số mô hình (đặc biệt ở các đoạn spike), có thể dẫn đến over-provision hoặc under-provision nếu không có cơ chế bảo vệ.
 
-* **Kế hoạch cải tiến:** Tích hợp Drift Detection để nhận diện sự thay đổi hành vi người dùng theo mùa vụ, triển khai trực tiếp lên Kubernetes thông qua Custom Metrics API.
+### Hướng phát triển
+- **Tích hợp Drift Detection:**  
+  Nhận diện thay đổi hành vi theo thời gian (mùa vụ, giờ cao điểm, thay đổi hành vi người dùng) để:
+  - cảnh báo khi phân phối traffic thay đổi,
+  - tự động điều chỉnh tham số scaling hoặc trigger retrain model.
+- **Triển khai thực tế lên Kubernetes:**  
+  - Xuất các dự báo và khuyến nghị scaling ra **Custom Metrics API**,
+  - Kết hợp với **HPA/VPA** hoặc custom controller để scale theo dự báo.
+- **Bổ sung tín hiệu hệ thống thật:**  
+  Thu thập CPU/RAM/Latency từ Prometheus/Grafana để:
+  - đánh giá SLA theo latency thật,
+  - tối ưu cost theo SLO/SLA thực tế thay vì chỉ requests/bytes.
+- **Mô phỏng nâng cao:**  
+  Thêm simulator cho queue/latency (Little’s Law hoặc mô hình hàng đợi) để phản ánh rõ hơn trade-off giữa **chi phí** và **trải nghiệm người dùng**.
+
+---
 
 ## 7. Tác động và ứng dụng
 
-**Lợi ích**
+### Lợi ích
+- **Giảm chi phí vận hành:** Tự động cân bằng giữa số lượng server và mức tải thực tế, hạn chế over-provision kéo dài.
+- **Giảm rủi ro vi phạm SLA:** Hybrid strategy có cơ chế “panic/burst” để phản ứng nhanh khi xuất hiện spike, giảm hard overload.
+- **Chống flapping tốt hơn:** Có cooldown/patience và penalty cho scaling events giúp hệ thống ổn định, tránh scale lên/xuống liên tục.
+- **Dễ mở rộng & tích hợp:** Thiết kế tách rời pipeline (forecast → recommend) giúp thay thế model (LGBM/XGBoost/LSTM) mà không đổi logic scaling.
 
-**Kịch bản triển khai**
+### Kịch bản triển khai (Deployment Scenarios)
+1. **Website/Portal có traffic theo giờ (giờ hành chính, cuối tuần)**
+   - Dùng predictive scaling (5m/15m) để scale trước giờ cao điểm.
+   - Reactive xử lý các dao động nhỏ và sai số dự báo.
+
+2. **Hệ thống thương mại điện tử (flash sale / campaign)**
+   - Dùng hybrid: dự báo để chuẩn bị baseline capacity.
+   - Khi spike bất ngờ, kích hoạt panic_ratio + burst_add để scale-out nhanh, giảm downtime/timeout.
+
+3. **API service/B2B theo hợp đồng SLA**
+   - Ưu tiên hạn chế hard overload bằng cách tăng weight penalty.
+   - Theo dõi drift để phát hiện thay đổi pattern (khách mới, tích hợp mới), tránh “lệch mùa vụ”.
+
+4. **Triển khai trên Kubernetes**
+   - Forecast service xuất metric dự báo (req/bytes) qua Custom Metrics.
+   - Autoscaler controller đọc metric và đề xuất replicas cho HPA.
+   - Kết hợp Prometheus để giám sát latency và điều chỉnh penalty theo SLO.
+
+5. **Nền tảng nội bộ (microservices)**
+   - Mỗi service có optimizer riêng (CAP_REQ/CAP_BYTES khác nhau).
+   - Có thể chạy A/B giữa reactive vs hybrid để so sánh cost và SLA theo thời gian.
+
 
 
 ## 👥 8. Tác giả và giấy phép
