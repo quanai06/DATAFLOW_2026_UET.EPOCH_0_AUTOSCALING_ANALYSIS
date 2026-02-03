@@ -102,9 +102,9 @@ def normalize_best_params(strategy: str, best_params: Dict[str, Any]) -> Dict[st
     raise ValueError(f"Unknown strategy: {strategy}")
 
 
-def load_best_params_file(model: str, strategy: str, base_dir: str = "results/optimize",test_set:str="test_data") -> Tuple[Dict[str, Any], Dict[str, Any]]:
+def load_best_params_file(model: str, strategy: str, base_dir: str = "results/optimize",train_set:str="train_data") -> Tuple[Dict[str, Any], Dict[str, Any]]:
     """Returns (raw_best, normalized_best)."""
-    path = os.path.join(base_dir, model,test_set, f"{model}_{strategy}_test_best_strategy_params.json")
+    path = os.path.join(base_dir, model,train_set, f"{model}_{strategy}_best_strategy_params.json")
     
     if not os.path.exists(path):
         raise FileNotFoundError(f"Best params file not found: {path}")
