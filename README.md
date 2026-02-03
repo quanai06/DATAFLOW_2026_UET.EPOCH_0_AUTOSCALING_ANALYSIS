@@ -150,8 +150,8 @@ Pipeline gồm 2 khối độc lập:
 - **Hybrid:** cân bằng tốt nhất giữa **cost** và **reliability**, đổi lại **scaling events** tăng
 
 
-# 🚀 5. Triển khai và demo
-## video cách chạy và giải thích chức năng của demo dự án  
+## 🚀 5. Triển khai và demo
+### video cách chạy và giải thích chức năng của demo dự án  
 - [video cách chạy và sử dụng](https://drive.google.com/file/d/FILE_ID/view?usp=sharing)
 
 **Yêu cầu hệ thống:**
@@ -207,7 +207,6 @@ python run_app.py
 - **Phụ thuộc vào chất lượng dự báo:** Predictive/Hybrid chịu ảnh hưởng bởi sai số mô hình (đặc biệt ở các đoạn spike), có thể dẫn đến over-provision hoặc under-provision nếu không có cơ chế bảo vệ.
 
 ### Hướng phát triển
-## 🚀 Hướng phát triển
 
 Để nâng cao tính hoàn thiện và giá trị ứng dụng, nhóm đề xuất các hướng phát triển theo **ba trục chính**:
 **(1) độ tin cậy thuật toán**, **(2) chất lượng đánh giá**, và **(3) khả năng triển khai**.
