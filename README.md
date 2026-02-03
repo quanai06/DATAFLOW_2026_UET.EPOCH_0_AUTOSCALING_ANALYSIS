@@ -82,7 +82,7 @@ Pipeline gồm 2 khối độc lập:
 
 1. **Forecasting Service**  
    Input: dữ liệu lịch sử (1m/5m/15m) + feature  
-   Output: dự báo `pred_req`, `pred_bytes` cho các horizon tương ứng
+   Output: dự báo `pred_req_t1`, `pred_bytes_imp_t1` cho các horizon tương ứng
 
 2. **Autoscaling Optimizer**  
    Input: `act_1m_req/bytes` + `pred_5m` + `pred_15m` (tùy chiến lược)  
@@ -97,7 +97,7 @@ Pipeline gồm 2 khối độc lập:
 - **Time-based split** (không shuffle)
 - Đánh giá theo từng horizon (1m/5m/15m)
 - So sánh mô hình theo:
-  - Forecast accuracy (MAPE/RMSE/MAE)
+  - Forecast accuracy (MAPE/RMSE/MAE/MSE)
   - Downstream autoscaling cost (chi phí + SLA)
 
 ### Tránh data leakage
