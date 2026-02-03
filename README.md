@@ -207,19 +207,36 @@ python run_app.py
 - **Phụ thuộc vào chất lượng dự báo:** Predictive/Hybrid chịu ảnh hưởng bởi sai số mô hình (đặc biệt ở các đoạn spike), có thể dẫn đến over-provision hoặc under-provision nếu không có cơ chế bảo vệ.
 
 ### Hướng phát triển
-- **Tích hợp Drift Detection:**  
-  Nhận diện thay đổi hành vi theo thời gian (mùa vụ, giờ cao điểm, thay đổi hành vi người dùng) để:
-  - cảnh báo khi phân phối traffic thay đổi,
-  - tự động điều chỉnh tham số scaling hoặc trigger retrain model.
-- **Triển khai thực tế lên Kubernetes:**  
-  - Xuất các dự báo và khuyến nghị scaling ra **Custom Metrics API**,
-  - Kết hợp với **HPA/VPA** hoặc custom controller để scale theo dự báo.
-- **Bổ sung tín hiệu hệ thống thật:**  
-  Thu thập CPU/RAM/Latency từ Prometheus/Grafana để:
-  - đánh giá SLA theo latency thật,
-  - tối ưu cost theo SLO/SLA thực tế thay vì chỉ requests/bytes.
-- **Mô phỏng nâng cao:**  
-  Thêm simulator cho queue/latency (Little’s Law hoặc mô hình hàng đợi) để phản ánh rõ hơn trade-off giữa **chi phí** và **trải nghiệm người dùng**.
+## 🚀 Hướng phát triển
+
+Để nâng cao tính hoàn thiện và giá trị ứng dụng, nhóm đề xuất các hướng phát triển theo **ba trục chính**:
+**(1) độ tin cậy thuật toán**, **(2) chất lượng đánh giá**, và **(3) khả năng triển khai**.
+
+### 1. Nâng cao độ tin cậy của phát hiện nhiễu và bất thường (Spike/Anomaly)
+Hiện tại, dự án phát hiện spike theo hướng **rule-based** (ngưỡng cố định) và/hoặc **ngưỡng động**.  
+Trong giai đoạn tiếp theo, có thể chuẩn hoá thành mô-đun độc lập **`SpikeDetector`** (tách khỏi logic autoscaling), cho phép cấu hình nhiều phương án:
+
+- **Ngưỡng cố định theo request/bytes** (dễ giải thích, phù hợp demo).
+- **Ngưỡng động theo forecast quantile** (phù hợp predictive/hybrid).
+- **Statistical detector** (z-score / robust z-score) hoặc **change-point detection** (khi cần nâng mức “anomaly”).
+
+### 2. Chuẩn hoá mục tiêu tối ưu và thước đo theo chuẩn vận hành (Operational Metrics)
+Chi phí hiện được tổng hợp từ **server-minutes**, **SLA penalty** (soft/hard overload) và **số lần scaling**.  
+Hệ thống có thể phát triển theo hướng các chỉ số vận hành rõ ràng hơn:
+
+- **Tách KPI theo SLO/SLA**: ví dụ `hard overload minutes ≤ X`, `soft overload minutes ≤ Y`, hoặc quy đổi sang **độ trễ giả lập (simulated latency)**.
+- **Constrained optimization**: giữ mức vi phạm SLA trong giới hạn, sau đó **tối ưu chi phí** trong ràng buộc đó.
+- **Multi-objective (Pareto frontier)**: đồng thời tối ưu **chi phí**, **SLA**, và **scaling events** để cung cấp góc nhìn trade-off minh bạch.
+
+### 3. Củng cố khả năng triển khai và mở rộng kiểm thử (Robustness & Testing)
+Để hệ thống mạnh mẽ hơn và sẵn sàng triển khai thực tế, cần bổ sung:
+
+- **Logging/Trace**: ghi nhận thời gian chạy mô phỏng, kiểm soát lỗi đọc dữ liệu, và thông báo lỗi thân thiện.
+- **Đánh giá trên đa dạng mẫu traffic**: kiểm thử với burst, seasonality mạnh, hoặc regime shift.
+- **Synthetic data generation**: tạo dữ liệu giả lập để kiểm thử edge-case như:
+  - missing minutes kéo dài,
+  - spike liên tục,
+  - thay đổi phân phối đột ngột (distribution shift).
 
 ---
 
