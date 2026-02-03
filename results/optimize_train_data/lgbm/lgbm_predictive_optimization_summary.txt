@@ -1,0 +1,8 @@
+KẾT QUẢ TỐI ƯU CHIẾN LƯỢC
+Chiến lược: predictive
+Giá trị Cost thấp nhất: 10117247.305833334
+Bộ tham số tốt nhất: {'k_base_p': 1.056649450178186, 'alpha_5m_p': 0.9494298898384287, 'in_patience_p': 12}
+Số lần scaling events trong mô phỏng: 435
+Tổng số lần soft overload (req + bytes): 746.9404833333334
+Tổng số lần hard overload (req + bytes): 382.09876666666673
+

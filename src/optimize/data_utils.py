@@ -32,7 +32,7 @@ def merge_multiresolution_data(model, test_model=''):
     req_5m, bytes_5m = change_to_per_second(model, '5m', test_model=test_model)
     req_5m_q90, bytes_5m_q90 = change_to_per_second(model, '5m', suffix='_q90', test_model=test_model)
     req_15m, bytes_15m = change_to_per_second(model, '15m', test_model=test_model)
-    
+
     # Merge
     df = pd.merge(req_1m, bytes_1m, on='timestamp')
     
@@ -71,15 +71,16 @@ if __name__ == "__main__":
     df.to_csv('results/merged_train_data/merged_lstm_data.csv', index=False)
     print("Đã lưu dữ liệu hợp nhất tại: results/merged_train_data/merged_lstm_data.csv")
 
-    # Lưu cho file test
     df = merge_multiresolution_data('xgboost', test_model='_test')
-    df.to_csv('results/merged_test_data/merged_xgboost_data_test.csv', index=False)
-    print("Đã lưu dữ liệu hợp nhất tại: results/merged_test_data/merged_xgboost_data_test.csv")
+    df.to_csv('results/merged_test_data/merged_xgboost_test_data.csv', index=False)
+    print("Đã lưu dữ liệu hợp nhất tại: results/merged_test_data/merged_xgboost_test_data.csv")
 
     df = merge_multiresolution_data('lgbm', test_model='_test')
-    df.to_csv('results/merged_test_data/merged_lgbm_data_test.csv', index=False)
-    print("Đã lưu dữ liệu hợp nhất tại: results/merged_test_data/merged_lgbm_data_test.csv")
-    
+    df.to_csv('results/merged_test_data/merged_lgbm_test_data.csv', index=False)
+    print("Đã lưu dữ liệu hợp nhất tại: results/merged_test_data/merged_lgbm_test_data.csv")
+
     df = merge_multiresolution_data('lstm', test_model='_test')
-    df.to_csv('results/merged_test_data/merged_lstm_data_test.csv', index=False)
-    print("Đã lưu dữ liệu hợp nhất tại: results/merged_test_data/merged_lstm_data_test.csv")
+    df.to_csv('results/merged_test_data/merged_lstm_test_data.csv', index=False)
+    print("Đã lưu dữ liệu hợp nhất tại: results/merged_test_data/merged_lstm_test_data.csv")
+
+
