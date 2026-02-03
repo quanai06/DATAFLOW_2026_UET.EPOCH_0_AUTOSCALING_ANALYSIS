@@ -2,7 +2,7 @@
     
   <img src="dataflow.png" width="200" alt="logo" />
 
-  # Intelligent Autoscaling System - DataFlow 2026
+  # Chủ đề: Autoscaling Analysis - DataFlow 2026
   
   **Giải pháp Tối ưu hóa Tự động hóa việc cấp phát tài nguyên máy chủ (Autoscaling) dựa trên Học máy và Chiến lược lai (Hybrid Strategy).**
   
@@ -14,52 +14,67 @@
 
 ## 📖 Mục lục
 
-- [Giới thiệu](#-giới-thiệu)
-- [Mục tiêu và Đóng góp](#-mục-tiêu-và-đóng-góp)
-- [Các Bước Hoạt Động](#-các-bước-hoạt-động)
-- [Cài đặt](#-cài-đặt-và-chạy-dự-án)
-- [Cách sử dụng](#-cách-sử-dụng)
-- [Cấu trúc dự án](#-cấu-trúc-dự-án)
-- [Kết quả](#-kết-quả)
+- [1. Tóm tắt](#-1-tóm-tắt)
+- [2. Dữ liệu](#-2-dữ-liệu)
+- [3. Mô hình và kiến trúc](#-3-mô-hình-và-kiến-trúc)
+- [4. Đánh giá](#-4-đánh-giá)
+- [5. Triển khai và Demo](#-5-triển-khai-và-demo)
+- [6. Giới hạn và Hướng phát triển](#-6-giới-hạn-và-hướng-phát-triển)
+- [7. Tác động và ứng dụng](#-7-tác-động-và-ứng-dụng)
+- [8. Tác giả và Giấy phép](#-8-tác-giả-và-giấy-phép)
 
 
 ---
 
-## 📖 Giới thiệu
+## 📖 1. Tóm tắt
 
 Dự án thuộc khuôn khổ cuộc thi DATAFLOW 2026 - Câu lạc bộ Toán Tin HAMIC.
-Trong quản trị hệ thống đám mây, việc cấp phát tài nguyên tĩnh thường dẫn đến lãng phí khi thấp tải hoặc sập hệ thống (Overload) khi cao tải. Dự án này giải quyết hai bài toán cốt lõi:
+
+**Vấn đề cần giải quyết**:
+Trong quản trị hệ thống đám mây, việc cấp phát tài nguyên tĩnh thường dẫn đến lãng phí khi thấp tải hoặc sập hệ thống (Overload) khi cao tải. 
+
+**Ý tưởng và cách tiếp cận**:
+Dự án này giải quyết hai bài toán cốt lõi:
 1. **Time-Series Forecasting**: Dự báo lưu lượng truy cập (Request/Bytes) trong tương lai sử dụng các mô hình: XGBoost, LightGBM, LSTM.
 2. **Cost Optimization**: Xây dựng thuật toán Autoscaling thông minh để cân bằng giữa chi phí thuê server và cam kết chất lượng dịch vụ (SLA).
 
-## 👥 Mục tiêu và Đóng góp
+**Giá trị thực tiễn**:
+Giảm thiểu tối đa chi phí thuê máy chủ nhưng vẫn đảm bảo độ trễ thấp và tính sẵn sàng cao cho dịch vụ
 
-Dự án này được thực hiện bởi nhóm sinh viên từ trường [UET - VNU](https://uet.vnu.edu.vn) gồm 4 thành viên:
+## 2. Dữ liệu:
 
-* **Lê Hoàng Quân** - Trưởng Nhóm
-* **Vũ Hoàng Diệu Linh** 
-* **Nguyễn Thị Hiền** 
-* **Dương Trọng Nguyên** 
+**Nguồn**: Bộ dữ liệu nhật ký truy cập HTTP (Web Log) của máy chủ NASA trung tâm vũ trụ Kennedy (07/1995 - 08/1995)
 
-**Mục tiêu chính:**
-Dựa trên việc phân tích nhật ký truy cập (log) của máy chủ WWW trong 2 tháng, từ đó xây dựng mô hình dự báo tải và thiết kế chính sách Autoscaling thông minh nhằm giảm thiểu lãng phí tài nguyên mà vẫn đảm bảo cam kết chất lượng dịch vụ (SLA).
+**Mô tả trường dữ liệu chính** ```host, timestamp, request, status, bytes```
 
-## ✨ Các Bước Hoạt Động
-Luồng xử lý của hệ thống (Pipeline) trải qua các bước sau:
+**Tiền xử lý đã thực hiện**
 
-1. **Ingest & Preprocessing**: Đọc log server, xử lý chuỗi thời gian, trích xuất đặc trưng (Requests/s, Bytes/s).
-2. **Modeling**: Huấn luyện các mô hình học máy (LSTM, XGBoost, LightGBM) để dự báo tải.
-Merging Data: Hợp nhất kết quả dự báo từ nhiều khung thời gian (1m, 5m, 15m) và dữ liệu thực tế.
-3. **Simulation & Optimization (Core)**:
-- Chạy mô phỏng Autoscaling trên dữ liệu lịch sử.
-- Sử dụng Optuna để tối ưu hóa hàm mục tiêu (Cost Function).
-4. **Evaluation**: Đánh giá hiệu quả trên tập dữ liệu kiểm thử (Test Set) dựa trên chi phí và tỷ lệ lỗi.
-## 🚀 Cài đặt và Chạy dự án
+
+## 3. Mô hình và kiến trúc
+
+**Kiến trúc tổng thể**
+
+**Mô hình sử dụng**
+
+**Chiến lược validation/training**
+
+**Tránh data leakage bằng cách**
+
+## 4. Đánh giá
+
+**Metrics**
+
+**Kết quả**
+
+**Phân tích trade-off**
+
+# 5. Triển khai và demo
 **Yêu cầu hệ thống:**
 
 Python 3.8 trở lên.
 
 Các thư viện phụ thuộc trong file requirements.txt
+
 ### 1. Clone dự án
 ```bash
 git clone https://github.com/quanai06/DATAFLOW_2026_UET.EPOCH_0_AUTOSCALING_ANALYSIS.git
@@ -101,81 +116,27 @@ Chạy lần lượt các file theo thứ tự sau:
 ```bash
 python src/Clean_data/generate_qa_reports.ipynb
 ```
+## 6. Giới hạn và hướng phát triển
 
-## 📁 Cấu trúc dự án
+* **Giới hạn hiện tại:** Dữ liệu năm 1995 chưa có các thông số về CPU/RAM thực tế để kiểm chứng độ trễ hệ thống (Latency).
 
-```
-DATAFLOW_2026_UET.EPOCH_0_AUTOSCALING_ANALYSIS
-├── README.md                    # Tài liệu dự án
-├── requirements.txt             # Danh sách thư viện
-├── figures/                     # Hình ảnh và biểu đồ
-│   ├── 
-│   ├── 
-│   └── 
-|   └── 
-|   └── 
-|   └── 
-|   └── 
-|   └── 
-|   └── 
-|   └── 
-|   └── 
-|   └── 
-|   └── 
-├── processed/                   # Dữ liệu đã xử lý
-│   ├── keywords.csv
-│   ├── Microblogs_Cleaned.csv
-│   ├── Microblogs_With_Weather.csv
-│   ├── population_cleaned.csv
-│   ├── Weather_Cleaned.csv
-│   ├── hourly_location_mappings/
-│   └── stat_hourly/
-├── raw/                         # Dữ liệu thô
-│   ├── keywords.csv
-│   ├── Microblogs.csv
-│   ├── Population.csv
-│   ├── symptom_keywords.txt
-│   └── Weather.csv
-│   └── Vastopolis_Map.png
-├── reports/                     # Báo cáo và kết quả
-│   └── qa_summary.csv
-└── src/                         # Mã nguồn
-    ├── Clean_data/              # Làm sạch dữ liệu
-    │   └── clean_keywords.ipynb
-    │   └── Clean_Microblogs.ipynb
-    │   └── cleaned_population.ipynb
-    │   └── cleaned_weather.ipynb
-    │   └── generate_qa_reports.ipynb
-    ├── Aggregate_data/          # Tổng hợp dữ liệu
-    │   └── location.ipynb
-    │   └── merge_microblogs&weather.ipynb
-    │   └── stat_hourly.ipynb
-    ├── Visualization/           # Trực quan hóa
-    │   └── bar_chart_2122h.ipynb
-    │   └── correlation_blog_weather.ipynb
-    │   └── Feature.ipynb
-    │   └── line_graph.ipynb
-    │   └── Point_Maps.ipynb
-    │   └── Spread_Animation.ipynb
-    │   └── Visualization_hours.ipynb
-    │   └── Wordcloud.ipynb
-    └── Bonus/                 # Tính năng bổ sung
-        └── advanced_full_data.ipynb
-        └── find_origin.ipynb 
-        └── Speed_Animation.ipynb
-    
-```
+* **Kế hoạch cải tiến:** Tích hợp Drift Detection để nhận diện sự thay đổi hành vi người dùng theo mùa vụ, triển khai trực tiếp lên Kubernetes thông qua Custom Metrics API.
 
-## 📊 Kết quả
+## 7. Tác động và ứng dụng
 
-Dự án cung cấp các kết quả sau:
-- **Thống kê theo giờ**: Phân tích vị trí, số lượng(symstom keyword theo từng yếu tố),số lượng người bệnh theo thời gian
-- **Chọn ra thời điểm đặc biệt**: Thời gian dịch nhỏ nhất, đỉnh dịch, sau đỉnh dịch
-- **Word Cloud**: Trực quan hóa từ khóa phổ biến
-- **Bản đồ tâm dịch**: Xác định vị trí bùng phát dịch bệnh
-- **Báo cáo tổng hợp**: Tóm tắt phân tích trong `reports/qa_summary.csv`
+**Lợi ích**
 
----
+**Kịch bản triển khai**
+
+
+## 👥 8. Tác giả và giấy phép
+
+Dự án này được thực hiện bởi nhóm sinh viên từ trường [UET - VNU](https://uet.vnu.edu.vn) gồm 4 thành viên:
+
+* **Lê Hoàng Quân** - Trưởng Nhóm
+* **Vũ Hoàng Diệu Linh** 
+* **Nguyễn Thị Hiền** 
+* **Dương Trọng Nguyên** 
 
 <div align="center">
   <p>Được phát triển bởi nhóm UET_EPOCH0</p>
