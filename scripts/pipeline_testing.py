@@ -144,17 +144,19 @@ def test_lstm():
 TESTERS = {
     "xgboost": test_xgboost,
     "lgbm": test_lgbm,
-    "lstm": test_lstm
+    "lstm": test_lstm,
+    "all": lambda: [fn() for fn in [test_xgboost, test_lgbm, test_lstm]]
 }
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--model",
-        choices=["xgboost", "lgbm", "lstm"],
-        default="lstm",
+        choices=["xgboost", "lgbm", "lstm", "all"],
+        default="all",
         help="Choose model type to test"
     )
+
     args = parser.parse_args()
 
     TESTERS[args.model]()
