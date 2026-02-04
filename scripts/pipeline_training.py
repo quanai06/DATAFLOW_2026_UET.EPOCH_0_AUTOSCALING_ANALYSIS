@@ -103,12 +103,12 @@ if __name__ == "__main__":
     parser.add_argument(
         "--model",
         choices=["xgboost", "lgbm", "lstm", "all"],
-        default="lstm"
+        default="all"
     )
     parser.add_argument(
         "--mode",
         choices=["train", "load"],
-        default="load"
+        default="train"
     )
     args = parser.parse_args()
 
