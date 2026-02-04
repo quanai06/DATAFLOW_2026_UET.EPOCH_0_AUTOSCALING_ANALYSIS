@@ -188,6 +188,7 @@ cp .env.example .env
 
 ### Chạy toàn bộ pipeline để kiểm chứng
 Chạy lần lượt các file theo thứ tự sau:
+Chú ý: Nếu huấn luyện lại cả 3 model, thời gian xấp xỉ 2 tiếng.
 ```bash
 # chạy xử lí data
 python src/scripts/pipeline_data.py
