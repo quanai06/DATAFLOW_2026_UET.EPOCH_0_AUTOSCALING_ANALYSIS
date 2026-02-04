@@ -191,7 +191,10 @@ Chạy lần lượt các file theo thứ tự sau:
 ```bash
 # chạy xử lí data
 python src/scripts/pipeline_data.py
-#l oad model
+# scripts train model (local)
+python scripts/pipeline_training.py
+# scripts test (load model)
+python scripts/pipeline_testing.py
 # chạy app rồi truy cập đường dẫn (http://localhost:8501)
 python run_app.py 
 ```
