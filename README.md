@@ -52,6 +52,75 @@ Dự án giải quyết 2 bài toán chính:
 
 ### Giá trị thực tiễn
 Giảm chi phí thuê máy chủ nhưng vẫn đảm bảo **độ trễ thấp** và **tính sẵn sàng cao** cho dịch vụ.
+### Cấu trúc thư mục 
+```
+DATAFLOW_2026_UTEPEOCH_0_AUTOSCALING_ANALYSIS/
+├── data/
+│ ├── raw/ 
+│ ├── cleaned/ # Cleaned logs after parsing & filtering
+│ ├── processed/ # Aggregated/resampled datasets (1m/5m/15m)
+│ ├── features/ # Feature tables (tabular DL/ML-ready)
+│ ├── model_ml/ # Exported datasets for ML models (XGB/LGBM)
+│ └── model_dl/ # Exported datasets/tensors for DL model (LSTM)
+│
+├── figure/ # Figures for report/README (plots, screenshots)
+│
+├── models/
+│ ├── xgboost/ 
+│ ├── lgbm/ 
+│ └── lstm/ 
+├── notebooks/ # EDA & feature engineering notebooks
+│ ├── eda_each_columns/
+│ │ ├── 03_host.ipynb
+│ │ ├── 04_timestamp.ipynb
+│ │ ├── 05_request.ipynb
+│ │ ├── 06_response.ipynb
+│ │ └── 07_bytes.ipynb
+│ ├── 01_to_csv.ipynb
+│ ├── 02_clean_data.ipynb
+│ └── aggregation_and_feature_engineering.ipynb
+│
+├── results/
+│ ├── merged_train_data/ # Merged train data for optimization/simulation
+│ ├── merged_test_data/ # Merged test data for final evaluation
+│ ├── optimize_train_data/# Optuna outputs (best params, summaries)
+│ │ ├── xgboost/
+│ │ ├── lgbm/
+│ │ └── lstm/
+│ ├── xgboost/ # Forecast metrics/predictions (if stored per model)
+│ ├── lgbm/
+│ └── lstm/
+│
+├── scripts/ # End-to-end pipelines (runable entrypoints)
+│ ├── pipeline_data.py # Data processing pipeline (raw → processed/features)
+│ ├── pipeline_training.py# Train models (XGB/LGBM/LSTM)
+│ ├── pipeline_optimize.py# Optuna optimize autoscaling params
+│ └── pipeline_testing.py # Evaluate on validation/test, export metrics
+│
+├── src/
+│ ├── app/ # Dashboard Frontend
+│ ├── data_pipeline/ # Core data processing modules
+│ ├── optimize/ # Autoscaling optimizer + simulation
+│ │ ├── api_scaler.py #API Backend
+│ │ ├── data_utils.py
+│ │ ├── runOptimizer.py
+│ │ └── universalOptimizer.py
+│ ├── test_model/ # Quick tests / sanity checks per model
+│ │ ├── test_lgbm.py
+│ │ ├── test_lstm.py
+│ │ └── test_xgboost.py
+│ ├── train_model/ # Training code per model
+│ │ ├── train_lgbm.py
+│ │ ├── train_lstm.py
+│ │ └── train_xgboost.py
+│ ├── data_processor.py # Shared preprocessing utilities
+│ └── init.py
+│
+├── .env # Local env (DO NOT COMMIT)
+├── .env.example # Example env config
+├── .gitignore
+└── README.md
+```
 
 ---
 
