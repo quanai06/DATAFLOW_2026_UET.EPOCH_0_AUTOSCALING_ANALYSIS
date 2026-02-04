@@ -152,7 +152,7 @@ Pipeline gồm 2 khối độc lập:
 
 ## 🚀 5. Triển khai và demo
 ### video cách chạy và giải thích chức năng của demo dự án  
-- [video cách chạy và sử dụng]([https://drive.google.com/file/d/FILE_ID/view?usp=sharing](https://drive.google.com/drive/folders/1YraHgBeWZ5QKbt-BUK3JP6luqEQhFZrG))
+- [video cách chạy và sử dụng](https://drive.google.com/drive/folders/1YraHgBeWZ5QKbt-BUK3JP6luqEQhFZrG)
 
 **Yêu cầu hệ thống:**
 
